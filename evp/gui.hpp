@@ -126,7 +126,7 @@ namespace EP {
     return font;
   }
 
-  void DrawText(float x, float y, std::string text, float size, sf::RenderTarget &target, const Color& color,float alignX=0,float alignY=0) {
+  float DrawText(float x, float y, std::string text, float size, sf::RenderTarget &target, const Color& color,float alignX=0,float alignY=0) {
     sf::Text shape(text, getFont());
     shape.setCharacterSize(std::floor(size));
     shape.setFillColor(color.toSFML());
@@ -134,6 +134,7 @@ namespace EP {
     shape.setPosition(std::floor(x-alignX*bounds.width),std::floor(y-alignY*bounds.height));
     //shape.setStyle(sf::Text::Bold | sf::Text::Underlined);
     target.draw(shape, sf::BlendAlpha);//BlendAdd
+    return bounds.width;
   }
 
   void DrawRect(float x, float y, float dx, float dy, sf::RenderTarget &target, const Color& color) {
@@ -638,6 +639,87 @@ namespace EP {
       void onDrawIs(std::function<void(float,float,float,float,float,sf::RenderTarget&)> _onDraw) {onDraw_=_onDraw;}
     protected:
       std::function<void(float,float,float,float,float,sf::RenderTarget&)> onDraw_;//gx,gy,dx,dy,scale,target
+    };
+    
+    class TextInput : public Area {
+    public:
+      TextInput(const std::string& name,Area* const parent,
+		const float x,const float y,const float dx,const float dy,
+		const std::string text,
+                const std::vector<Color> bgColors = std::vector<Color>{Color(0.5,0.5,0.5),Color(0.4,0.4,0.4),Color(0.3,0.3,0.3),Color(0.2,0.2,0.2)},
+                const std::vector<Color> textColors = std::vector<Color>{Color(0,0,0),Color(0,0,0),Color(1,1,1),Color(1,1,1)},
+		const Color currsorColor = Color(0.5,0,0)
+	       ) : Area(name,parent,x,y,dx,dy), text_(text), bgColors_(bgColors), textColors_(textColors), currsorColor_(currsorColor), currsorIdx(text_.size()){}
+      virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
+        float gx = x_*pscale+px;
+        float gy = y_*pscale+py;
+        int state = isFocus();
+	DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColors_[state]);
+	std::string p0 = text_.substr(0,currsorIdx);
+	std::string p1 = text_.substr(currsorIdx);
+	float tdx = DrawText(gx+1, gy+1, p0, (16)*pscale, target, textColors_[state]);
+	if(isFocus()) {
+	  DrawRect(gx+1+tdx,gy+1,1,16,target,currsorColor_);
+	}
+	DrawText(gx+1+tdx, gy+1, p1, (16)*pscale, target, textColors_[state]);
+      }
+      virtual void onKeyPressed(const sf::Keyboard::Key keyCode) {
+        switch (keyCode) {
+          case sf::Keyboard::Key::Left:{currsorMove(-1); break;}
+          case sf::Keyboard::Key::Right:{currsorMove(1); break;}
+          case sf::Keyboard::Key::Escape:{unFocus(); break;}
+          case sf::Keyboard::Key::Return:{unFocus(); break;}
+          case sf::Keyboard::Key::Delete:{currsorDel(); break;}
+          case sf::Keyboard::Key::BackSpace:{currsorBack(); break;}
+          case sf::Keyboard::Key::Period:{currsorPut(46); break;}
+          case sf::Keyboard::Key::Comma:{currsorPut(44); break;}
+          default: {
+            if(keyCode >=0 && keyCode <=25) {
+              if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
+                 ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift)) {
+		currsorPut(65+keyCode);
+	      } else {
+		currsorPut(97+keyCode);
+	      }
+	    } else if(keyCode >=26 && keyCode <=35) {
+              currsorPut(48+keyCode-26);
+	    }
+	    break;}
+        }
+      }
+      void currsorMove(const int move) {
+        currsorIdx = std::min((int)text_.size(), std::max(0, currsorIdx + move));
+      }
+      void currsorDel() {
+      	std::string p0 = text_.substr(0,currsorIdx);
+	std::string p1 = text_.substr(std::min((int)text_.size(),currsorIdx+1));
+	if(onText_) {onText_(text_);}
+	text_=p0+p1;
+      }
+      void currsorBack() {
+      	std::string p0 = text_.substr(0,std::max(0,currsorIdx-1));
+	std::string p1 = text_.substr(currsorIdx);
+	text_=p0+p1;
+	if(onText_) {onText_(text_);}
+	currsorIdx = p0.size();
+      }
+      void currsorPut(const char c) {
+      	std::string p0 = text_.substr(0,currsorIdx);
+	std::string p1 = text_.substr(currsorIdx);
+	text_=p0+c+p1;
+	if(onText_) {onText_(text_);}
+	currsorIdx+=1;
+      }
+
+      std::string text() {return text_;}
+      void onTextIs(std::function<void(const std::string&)> f) {onText_=f;}
+
+    protected:
+      std::string text_;
+      std::vector<Color> bgColors_,textColors_;
+      Color currsorColor_;
+      int currsorIdx;
+      std::function<void(const std::string&)> onText_;
     };
 
     class Window : public Area {
@@ -1498,9 +1580,9 @@ namespace EP {
             default: {break;}
           }
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)){
-          close();
-        }
+        //if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)){
+        //  close();
+        //}
       }
       void draw() {
         renderWindow_->clear();

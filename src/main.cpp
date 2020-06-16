@@ -1,9 +1,6 @@
 #include <map>
 #include <queue>
 #include <mutex>
-#include <valarray>
-#include <complex>
-#include <SFML/Audio.hpp>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -21,6 +18,11 @@ int main()
       float x,y,dx,dy;
       window2->childSize(dx,dy);
       window2->childOffset(x,y);
+      
+      EP::GUI::TextInput* inp = new EP::GUI::TextInput("input",window2,x+10,y+10,dx-20,30,"asdf");
+      inp->onTextIs([](const std::string& s){
+        std::cout << "Text update:"<< s <<"\n";
+      });
     }
 
 
