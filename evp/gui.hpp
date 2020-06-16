@@ -278,8 +278,13 @@ namespace EP {
           float cdx,cdy,cx,cy;
           parent_->childSize(cdx,cdy);
           parent_->childOffset(cx,cy);
-          sizeIs(cdx,cdy);
-          positionIs(cx,cy);
+          if(fillParentWithOffset_) {
+	    sizeIs(cdx-x_+cx,cdy-y_+cy);
+            //positionIs(cx,cy);
+	  } else {
+	    sizeIs(cdx,cdy);
+            positionIs(cx,cy);
+	  }
         }
       }
 
@@ -348,8 +353,9 @@ namespace EP {
         //std::cout << "position: " << fullName() << std::endl;
       }
 
-      Area* fillParentIs(bool const value) {
+      Area* fillParentIs(bool const value,bool const withOffset=false) {
         fillParent_ = value;
+	fillParentWithOffset_ = withOffset;
         if (fillParent_) {onResizeParent();}
         return this;}
       Area* childIs(Area* c) {children_.push_back(c); return this;}
@@ -457,6 +463,7 @@ namespace EP {
       }
       float x_,y_,dx_,dy_; // x,y relative to parent
       bool fillParent_ = false;
+      bool fillParentWithOffset_=false;
       Color bgColor_ = Color(0.05,0.05,0.1);
       bool isFocus_=false;
       bool isFocusPath_=false;
