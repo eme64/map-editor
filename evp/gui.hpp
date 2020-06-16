@@ -1,5 +1,5 @@
-#ifndef EP_GUI_HPP
-#define EP_GUI_HPP
+#ifndef EVP_GUI_HPP
+#define EVP_GUI_HPP
 #include <stdlib.h>
 #include <iostream>
 #include <cmath>
@@ -10,7 +10,7 @@
 #include <sstream> // stringstream
 
 
-namespace EP {
+namespace evp {
   class Function {
   public:
     virtual double fwd(double const x) {return std::min(1.0,std::max(0.0,x));}
@@ -338,6 +338,13 @@ namespace EP {
         }
         return this;
       }
+      
+      // dx,dy: scroll units
+      // x,y: global mouse coordinates
+      virtual void onMouseWheelScrolled(const float dx, const float dy, const float x, const float y) {
+        //std::cout << "Scrolled " << fullName() << " by: " << dx << " " << dy << "\n";
+      }
+      
       virtual void onResize(const float dxOld, const float dyOld) {
         //std::cout << "resizig: " << fullName() << std::endl;
       }
@@ -843,9 +850,9 @@ namespace EP {
 
     class Slider : public Area {
     public:
-      class SliderButtton : public Area {
+      class SliderButton : public Area {
       public:
-        SliderButtton(const std::string& name,Area* const parent,
+        SliderButton(const std::string& name,Area* const parent,
                const float x,const float y,const float dx,const float dy,
                const std::vector<Color> buttonColors
               )
@@ -895,7 +902,7 @@ namespace EP {
       : Area(name,parent,x,y,dx,dy),
         isHorizontal_(isHorizontal),minVal_(minVal),maxVal_(maxVal),val_(initVal),buttonLength_(buttonLength),
         bgColors_(bgColors){
-            sliderButton_ = new SliderButtton("button",this,0,0,dx/2,dy/2,buttonColors);
+            sliderButton_ = new SliderButton("button",this,0,0,dx/2,dy/2,buttonColors);
             adjustChildren();
       }
       void adjustChildren() {
@@ -911,7 +918,8 @@ namespace EP {
       }
       double val() {return val_;}
       void valIs(float val) {
-        if (val_!=val) {
+        val = std::min(maxVal_, std::max(minVal_, val));
+	if (val_!=val) {
           val_=val;
           adjustChildren();
           if (onVal_) {onVal_(val_);}
@@ -974,7 +982,7 @@ namespace EP {
       }
 
     protected:
-      SliderButtton* sliderButton_;
+      SliderButton* sliderButton_;
       bool isHorizontal_;
       float minVal_,maxVal_,val_,buttonLength_;
       std::function<void(float)> onVal_;
@@ -1069,6 +1077,15 @@ namespace EP {
       }
       virtual void onResize(const float dxOld, const float dyOld) {
         adjustChildren();
+      }
+
+      void doScroll(const float dx, const float dy) {
+        if(sliderX_) {
+	  sliderX_->valIs(sliderX_->val() + dx);
+	}
+        if(sliderY_) {
+	  sliderY_->valIs(sliderY_->val() + dy);
+	}
       }
     protected:
       ScrollAreaViewer* scrollView_;
@@ -1449,7 +1466,7 @@ namespace EP {
         renderWindow_->setKeyRepeatEnabled(false);
 
         sf::Vector2u size = renderWindow_->getSize();
-        mainArea_ = (new EP::GUI::Area("main",NULL,0,0,size.x,size.y))->fillParentIs(true);
+        mainArea_ = (new evp::GUI::Area("main",NULL,0,0,size.x,size.y))->fillParentIs(true);
         mainArea_->onDeleteIs([this](Area* const a) {
           forgetArea(a);
         });
@@ -1500,9 +1517,17 @@ namespace EP {
               break;
             }
             case sf::Event::MouseWheelScrolled: {
-              if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
-                int delta = event.mouseWheelScroll.delta;
-              }
+              if (mouseOverArea_) {
+	        int delta = event.mouseWheelScroll.delta;
+	        int msx = event.mouseWheelScroll.x;
+	        int msy = event.mouseWheelScroll.y;
+
+                if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
+                  mouseOverArea_->onMouseWheelScrolled(0,delta,msx,msy);
+		} else if(event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel){
+                  mouseOverArea_->onMouseWheelScrolled(delta,0,msx,msy);
+	        }
+	      }
               break;
             }
             case sf::Event::MouseButtonPressed: {
@@ -1568,7 +1593,7 @@ namespace EP {
                 sf::Mouse::setPosition(sf::Vector2i(lastMouseX_,lastMouseY_),*renderWindow_);
               }
 
-              EP::GUI::Area* mouseOverNew = mainArea_->checkMouseOver(lastMouseX_,lastMouseY_,1.0);
+              evp::GUI::Area* mouseOverNew = mainArea_->checkMouseOver(lastMouseX_,lastMouseY_,1.0);
               mouseOverIs(mouseOverNew);
               break;
             }
@@ -1596,16 +1621,16 @@ namespace EP {
         mainArea_->draw(0,0,*renderWindow_,1);
         // DrawDot(MOUSE_X, MOUSE_Y, window, sf::Color(255*MOUSE_RIGHT_DOWN,255*MOUSE_LEFT_DOWN,255));
         if (mouseOverArea_) {
-          EP::DrawText(5,5, "over: " + mouseOverArea_->fullName(), 10, *renderWindow_, EP::Color(1.0,1.0,1.0));
+          evp::DrawText(5,5, "over: " + mouseOverArea_->fullName(), 10, *renderWindow_, evp::Color(1.0,1.0,1.0));
         }
         if(mouseDown_) {
           std::string p = "down: " + (mouseDownArea_?mouseDownArea_->fullName():"None") + " " + (mouseDownCaptured_?"captured":"glide");
-          EP::DrawText(5,20, p, 10, *renderWindow_, EP::Color(1.0,1.0,1.0));
+          evp::DrawText(5,20, p, 10, *renderWindow_, evp::Color(1.0,1.0,1.0));
         }
         {
           Area* const focus = mainArea_->getFocus();
           std::string p = "focus: " + (focus?focus->fullName():"None");
-          EP::DrawText(5,35, p, 10, *renderWindow_, EP::Color(1.0,1.0,1.0));
+          evp::DrawText(5,35, p, 10, *renderWindow_, evp::Color(1.0,1.0,1.0));
         }
 
         renderWindow_->display();
@@ -1631,5 +1656,5 @@ namespace EP {
       float lastMouseY_;
     };
   }// namespace GUI
-}// namespace EP
-#endif //EP_GUI_HPP
+}// namespace evp
+#endif //EVP_GUI_HPP

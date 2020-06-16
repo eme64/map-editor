@@ -13,7 +13,7 @@
 int main()
 {
   // ------------------------------------ WINDOW
-  EP::GUI::MasterWindow* masterWindow = new EP::GUI::MasterWindow(1000,600,"window title",false);
+  evp::GUI::MasterWindow* masterWindow = new evp::GUI::MasterWindow(1000,600,"window title",false);
 
   setUpBaseWindow(masterWindow->area());
 
