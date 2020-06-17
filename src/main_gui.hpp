@@ -122,6 +122,45 @@ public:
     }
   }
 
+  void selectNext() {
+    if(selectedId()<=0 && pname.size()>0) {
+      selectedId_ = pname.begin()->first;
+    } else if(pname.size()>0) {
+      bool found = false;
+      int id = selectedId();
+      for(auto it : pname) {
+	if(found) {
+	  selectedId_ = it.first;
+	  return;
+	} else if(it.first == id) {
+	  found = true;
+	}
+        selectedId_ = pname.begin()->first;
+      }
+    }
+  }
+  void selectPrev() {
+    if(selectedId()<=0 && pname.size()>0) {
+      selectedId_ = pname.begin()->first;
+    } else if(pname.size()>0) {
+      int last = pname.rbegin()->first;
+      int id = selectedId();
+      for(auto it : pname) {
+	if(it.first == id) {
+	  selectedId_ = last;
+	  return;
+	}
+	last = it.first;
+      }
+    }
+  }
+
+  void select(int pid) {
+    if(pcolor.find(pid)!=pcolor.end()) {
+      selectedId_ = pid;
+    }
+  }
+
 private:
   std::map<int,std::string> pname;
   std::map<int,evp::Color> pcolor;
@@ -186,6 +225,22 @@ public:
 	   );
       }
     }
+
+    if(!showHUD_ && parent() && parent()->parent()) {
+      float xx = parent()->parent()->globalX();
+      float yy = parent()->parent()->globalY();
+      evp::DrawRect(xx+2,yy+2,40,35,target,evp::Color(0,0,0,0.7));
+      evp::DrawText(xx+5,yy+5,"[H]",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+20,modeText[mode_],12,target,evp::Color(1,1,1));
+    } else {
+      float xx = parent()->parent()->globalX();
+      float yy = parent()->parent()->globalY();
+      evp::DrawRect(xx+2,yy+2,300,300,target,evp::Color(0,0,0,0.7));
+      evp::DrawText(xx+5,yy+5,"[H] hide HUD",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+20,modeText[mode_],12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+35,"[M]ove   [S]elect   [D]raw",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+100,"[P + up/down] Palette Selection",12,target,evp::Color(1,1,1));
+    }
   }
   void zoomIs(const float z) {
     zoom_ = std::min(1e2f, std::max(1e-2f,z));
@@ -231,25 +286,85 @@ public:
   virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
     if (isFirstDown) {
       setFocus();
-      doAction();
+      float dx=0,dy=0;
+      doAction(dx,dy);
       return true; // capture
     }
     return false;
   }
 
   virtual bool onMouseDown(const bool isCaptured,const float x,const float y,float &dx, float &dy,Area* const over) {
-    if(isCaptured) {doAction();}
+    if(isCaptured) {doAction(dx,dy);}
     return true;
   }
   
-  void doAction() {
-    long pid = paletteArea_->selectedId();
-    if(cellOver_>=0 && pid>=0) {
-      evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
-      cell.info.paletteId = pid;
-      wantMapColorize_=true;
-    } 
+  void doAction(float &dx, float &dy) {
+    switch(mode_) {
+      case 0: {
+        // Move
+	if(dx!=0 || dy!=0) {
+          evp::GUI::ScrollArea* a = dynamic_cast<evp::GUI::ScrollArea*>(parent()->parent());
+	  a->doScroll(-dx,-dy);
+	}
+      break;}
+      case 1: { // Draw
+        long pid = paletteArea_->selectedId();
+        if(cellOver_>=0 && pid>=0) {
+          evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
+          cell.info.paletteId = pid;
+          wantMapColorize_=true;
+        } 
+      break;}
+      case 2: {
+        // Select
+        if(cellOver_>=0) {
+          evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
+	  paletteArea_->select(cell.info.paletteId);
+	}
+      break;}
+    }
   }
+
+  virtual void onUnFocus() {mode_=0;} // make sure mode is reset
+
+  virtual void onKeyPressed(const sf::Keyboard::Key keyCode) {
+    switch (keyCode) {
+      case sf::Keyboard::Key::H:{showHUD_ = !showHUD_; break;}
+      case sf::Keyboard::Key::Down:{
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
+	  paletteArea_->selectNext();
+	}
+      break;}
+      case sf::Keyboard::Key::Up:{
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
+	  paletteArea_->selectPrev();
+	}
+      break;}
+      case sf::Keyboard::Key::M:{mode_ = 0; break;}
+      case sf::Keyboard::Key::D:{mode_ = 1; break;}
+      case sf::Keyboard::Key::S:{mode_ = 2; break;}
+      //case sf::Keyboard::Key::Right:{currsorMove(1); break;}
+      //case sf::Keyboard::Key::Escape:{unFocus(); break;}
+      //case sf::Keyboard::Key::Return:{unFocus(); break;}
+      //case sf::Keyboard::Key::Delete:{currsorDel(); break;}
+      //case sf::Keyboard::Key::BackSpace:{currsorBack(); break;}
+      //case sf::Keyboard::Key::Period:{currsorPut(46); break;}
+      //case sf::Keyboard::Key::Comma:{currsorPut(44); break;}
+      //default: {
+      //  if(keyCode >=0 && keyCode <=25) {
+      //    if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
+      //       ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift)) {
+      //  currsorPut(65+keyCode);
+      //    } else {
+      //  currsorPut(97+keyCode);
+      //    }
+      //  } else if(keyCode >=26 && keyCode <=35) {
+      //    currsorPut(48+keyCode-26);
+      //  }
+      //  break;}
+    }
+  }
+ 
 
 private:
   evp::VoronoiMap<CInfo>* vmap;
@@ -258,6 +373,15 @@ private:
   PaletteArea* paletteArea_;
   size_t cellOver_ = -1;
   bool wantMapColorize_ = false;
+
+  // Command options:
+  bool showHUD_ = false;
+  int mode_ = 0;
+  std::vector<std::string> modeText = {
+    "Move",   // 0
+    "Draw",   // 1
+    "Select",   // 1
+  };
 };
 
 

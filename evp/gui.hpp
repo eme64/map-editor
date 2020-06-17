@@ -384,6 +384,7 @@ namespace evp {
           if (oldFocus==this) {return;}
           if (oldFocus) {oldFocus->unFocus();}
           isFocus_=true;
+	  onSetFocus();
         }
         isFocusPath_=true;
         if (parent_) {
@@ -393,6 +394,7 @@ namespace evp {
       }
       void unFocus() {
         //std::cout << "unFocus " << fullName() << std::endl;
+	if(isFocus_) {onUnFocus();}
         isFocus_=false;
         isFocusPath_=false;
         if (parent_) {parent_->unFocus();}
@@ -418,6 +420,9 @@ namespace evp {
       }
       bool isFocus() {return isFocus_;}
       bool isFocusPath() {return isFocusPath_;}
+      
+      virtual void onSetFocus() {}
+      virtual void onUnFocus() {}
 
       void colorIs(Color c) {bgColor_=c;}
 
