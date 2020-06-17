@@ -54,6 +54,49 @@ private:
   bool hasData_=false;
 };
 
+
+class PaletteArea : public evp::GUI::Area{
+public:
+  PaletteArea(evp::GUI::Area* const parent)
+	  : Area("paletteArea",parent,0,0,200,400) {
+    colorIs(evp::Color(0.05,0.05,0.05));
+    repopulate();
+  }
+  void repopulate() {
+    // remove all children, repopulate
+    doDeleteChildren();
+    
+    float ypos = 0;
+    // add all palette items
+    // TODO
+    for(int i=0;i<10;i++) {
+       evp::GUI::ColorSlot* s = new evp::GUI::ColorSlot("colorSlot_"+std::to_string(i),
+		                                      this,5,ypos+5,100,20,
+						      evp::ColorHue(i*0.7));
+       if(i%2==0) {s->isPasteIs(false);}
+       s->onColorIs([](const evp::Color c) {
+         std::cout << "onColor: " << c.r << " " << c.g << " " << c.b << "\n";
+       });
+       ypos+=25;
+    }
+
+    // add plus button
+    evp::GUI::Button* plusb = new evp::GUI::Button("buttonPlus",this,2,ypos+2,16,16,"+");
+    plusb->onClickIs([this]() {
+      addNewItem();
+    });
+    ypos+=20;
+    sizeIs(200,ypos);
+  }
+  void addNewItem() {
+    std::cout << "addNewItem\n";
+    repopulate();
+  }
+private:
+  std::map<int,std::string> pname;
+  std::map<int,evp::Color> pcolor;
+};
+
 class Editor {
 public:
   Editor(evp::GUI::Area* const parent) {
@@ -77,14 +120,13 @@ public:
     int topBarOffset = 100;
     
     // palette on left side
-    evp::GUI::Area* palette = new evp::GUI::Area("paletteArea",NULL,0,0,100,600);
-    palette->colorIs(evp::Color(1,1,0));
-    evp::GUI::Area* scrollp = new evp::GUI::ScrollArea("scrollp",window,palette,x,y+topBarOffset,195,dy);
+    paletteArea = new PaletteArea(NULL);
+    evp::GUI::Area* scrollp = new evp::GUI::ScrollArea("scrollp",window,paletteArea,x,y+topBarOffset,220,dy);
     scrollp->fillParentIs(false,true,true);
 
     // MapArea in center / bottom-right
     mapArea = new MapArea(NULL,10000,1000,1000);
-    evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x+200,y+topBarOffset,dx,dy);
+    evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x+225,y+topBarOffset,dx,dy);
     mapArea->colorIs(evp::Color(1,0,0));
     scroll->fillParentIs(true,true,true);
   }
@@ -94,6 +136,7 @@ private:
   evp::GUI::Window* window;
   evp::GUI::TextInput* fileName;
   MapArea* mapArea;
+  PaletteArea* paletteArea;
 };
 
 

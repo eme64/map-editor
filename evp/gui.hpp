@@ -55,34 +55,7 @@ namespace evp {
     }
   protected:
   };
-  Color ColorHue(float hue) {
-    hue = fmod(hue,1.0);
-    hue*=6.0;
-      if (hue<1.0) {
-        return Color(1,1*hue,0);
-      }
-      hue-=1.0;
-      if (hue<1.0) {
-        return Color(1-1*hue,1,0);
-      }
-      hue-=1.0;
-      if (hue<1.0) {
-        return Color(0,1,1*hue);
-      }
-      hue-=1.0;
-      if (hue<1.0) {
-        return Color(0,1-1*hue,1);
-      }
-      hue-=1.0;
-      if (hue<1.0) {
-        return Color(1*hue,0,1);
-      }
-      hue-=1.0;
-      if (hue<1.0) {
-        return Color(1,0,1-1*hue);
-      }
-      return Color(1,1,1);
-  }
+  Color ColorHue(float hue);
   // sf::Color HueToRGB(float hue) {
   //   hue = fmod(hue,1.0);
   //   hue*=6.0;
@@ -112,67 +85,31 @@ namespace evp {
   //   return sf::Color(255,255,255);
   // }
   //
-
-  sf::Font font;
-  bool isFont = false;
-  sf::Font& getFont() {
-    if (!isFont) {
-      if (!font.loadFromFile("extern/arial.ttf")) {
-          std::cout << "font could not be loaded!" << std::endl;
-      } else {
-        isFont = true;
+  class Font {
+  public:
+    static sf::Font font;
+    static bool isFont;
+    static sf::Font& getFont() {
+      if (!isFont) {
+        if (!font.loadFromFile("extern/arial.ttf")) {
+            std::cout << "font could not be loaded!" << std::endl;
+        } else {
+          isFont = true;
+        }
       }
+      return font;
     }
-    return font;
-  }
+  };
 
-  float DrawText(float x, float y, std::string text, float size, sf::RenderTarget &target, const Color& color,float alignX=0,float alignY=0) {
-    sf::Text shape(text, getFont());
-    shape.setCharacterSize(std::floor(size));
-    shape.setFillColor(color.toSFML());
-    sf::FloatRect bounds = shape.getLocalBounds();
-    shape.setPosition(std::floor(x-alignX*bounds.width),std::floor(y-alignY*bounds.height));
-    //shape.setStyle(sf::Text::Bold | sf::Text::Underlined);
-    target.draw(shape, sf::BlendAlpha);//BlendAdd
-    return bounds.width;
-  }
+  float DrawText(float x, float y, std::string text, float size, sf::RenderTarget &target, const Color& color,float alignX=0,float alignY=0);
 
-  void DrawRect(float x, float y, float dx, float dy, sf::RenderTarget &target, const Color& color) {
-    sf::RectangleShape rectangle;
-    rectangle.setSize(sf::Vector2f(dx, dy));
-    rectangle.setFillColor(color.toSFML());
-    rectangle.setPosition(x, y);
-    target.draw(rectangle, sf::BlendAlpha);//BlendAdd
-  }
-  void DrawOval(float x, float y, float dx, float dy, sf::RenderTarget &target, const Color& color) {
-    sf::CircleShape shape(1);
-    shape.setScale(dx*0.5,dy*0.5);
-    shape.setFillColor(color.toSFML());
-    shape.setPosition(x, y);
-    target.draw(shape, sf::BlendAlpha);
-  }
-  void DrawLine(float x1, float y1, float x2, float y2, sf::RenderTarget &target, const Color& color,float width=1) {
-    const float dist = std::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
-    const float rad = std::atan2(y1-y2,x1-x2)+0.5*M_PI;
-    const float angle = rad*180.0/M_PI;
-    sf::RectangleShape rectangle;
-    rectangle.setSize(sf::Vector2f(width, dist));
-    rectangle.setFillColor(color.toSFML());
-    rectangle.setPosition(x1-std::cos(rad)*width*0.5, y1-std::sin(rad)*width*0.5);
-    rectangle.setRotation(angle);
-    target.draw(rectangle, sf::BlendAlpha);//BlendAdd
-    DrawOval(x1-width*0.5,y1-width*0.5,width,width,target,color);
-    DrawOval(x2-width*0.5,y2-width*0.5,width,width,target,color);
-  }
-  void DrawTriangle(float x0, float y0, float x1, float y1,float x2, float y2, sf::RenderTarget &target, const Color& color) {
-    sf::ConvexShape convex;
-    convex.setPointCount(3);
-    convex.setFillColor(color.toSFML());
-    convex.setPoint(0, sf::Vector2f(x0,y0));
-    convex.setPoint(1, sf::Vector2f(x1,y1));
-    convex.setPoint(2, sf::Vector2f(x2,y2));
-    target.draw(convex, sf::BlendAlpha);
-  }
+  void DrawRect(float x, float y, float dx, float dy, sf::RenderTarget &target, const Color& color);
+  
+  void DrawOval(float x, float y, float dx, float dy, sf::RenderTarget &target, const Color& color);
+
+  void DrawLine(float x1, float y1, float x2, float y2, sf::RenderTarget &target, const Color& color,float width=1);
+
+  void DrawTriangle(float x0, float y0, float x1, float y1,float x2, float y2, sf::RenderTarget &target, const Color& color);
 
   class ViewAnchor {
   public:
@@ -422,6 +359,16 @@ namespace evp {
         for (auto &f : onDelete_) {f(a);}
         if (parent_) {
           parent_->onDeleteNotify(a);
+        }
+      }
+      void doDeleteChildren() {
+        std::cout << "doDeleteChildren: " << fullName() << std::endl;
+        std::list<Area*> cCopy = children_;
+        // cannot use original, bc is modified by children
+        for (auto &c : cCopy) {
+          std::cout << "inc" << c->fullName() << std::endl;
+          c->doDelete(false);
+          std::cout << "outc" << std::endl;
         }
       }
       void setFocus(bool isRecursive=false) {
@@ -751,7 +698,62 @@ namespace evp {
       std::function<void(const std::string&)> onText_;
       bool mouseOver_ = false;
     };
+ 
+    class ColorSlot : public Area {
+    public:
+      ColorSlot(const std::string& name,Area* const parent,
+		const float x,const float y,const float dx,const float dy,
+		const Color colorVal,
+                const std::vector<Color> bgColors = std::vector<Color>{Color(0,0,0),Color(0.7,0.7,0.7),Color(1,1,1)}
+	       ) : Area(name,parent,x,y,dx,dy), colorVal_(colorVal), bgColors_(bgColors) {}
+      virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
+        float gx = x_*pscale+px;
+        float gy = y_*pscale+py;
+        int state = isFocus()?2:(mouseOver_?1:0);
+	DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColors_[state]);
+	DrawRect(gx+1, gy+1, dx_*pscale-2, dy_*pscale-2, target, colorVal_);
+      }
 
+      virtual void onMouseOverStart() {if (!mouseOver_) {mouseOver_=true;}}
+      virtual void onMouseOverEnd() {if (mouseOver_) {mouseOver_=false;}}
+
+      virtual void onKeyPressed(const sf::Keyboard::Key keyCode) {
+        switch (keyCode) {
+          case sf::Keyboard::Key::Escape:{unFocus(); break;}
+          case sf::Keyboard::Key::C:{
+	    if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+             ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl)) {
+	      clip_ = colorVal();
+	    }
+	    break;}
+          case sf::Keyboard::Key::V:{
+	    if(isPaste_) {
+	      if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl)
+               ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl)) {
+	        colorValIs(clip_);
+	      }
+	    }
+	    break;}
+        }
+      }
+      void colorValIs(const Color val) {
+        colorVal_ = val;
+	if(onColor_) {onColor_(colorVal_);}
+      }
+      Color colorVal() {return colorVal_;}
+      void onColorIs(std::function<void(const Color)> f) {onColor_=f;}
+      
+      void isPasteIs(const bool p) {isPaste_ = p;}
+
+      static Color clip_;
+    protected:
+      Color colorVal_;
+      std::vector<Color> bgColors_;
+      std::function<void(const Color)> onColor_;
+      bool mouseOver_ = false;
+      bool isPaste_ = true;
+    };
+    
     class Window : public Area {
     public:
       Window(const std::string& name,Area* const parent, const float x,const float y,const float dx,const float dy, const std::string title)
