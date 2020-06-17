@@ -49,6 +49,7 @@ namespace evp {
     }
 
     Color operator*(const float scale) {return Color(scale*r,scale*g,scale*b,a);}
+    Color operator+(const Color &c) {return Color(r+c.r,g+c.r,b+c.b,a+c.a);}
 
     sf::Color toSFML() const {
       return sf::Color(255.0*r,255.0*g,255.0*b,255.0*a);
@@ -56,6 +57,8 @@ namespace evp {
   protected:
   };
   Color ColorHue(float hue);
+  void ColorToHSV(const Color c, float &hue, float &v, float &s);
+  Color HSVToColor(const float hue, const float v, const float s);
   // sf::Color HueToRGB(float hue) {
   //   hue = fmod(hue,1.0);
   //   hue*=6.0;
@@ -599,7 +602,8 @@ namespace evp {
       : Area(name,parent,x,y,dx,dy){
         colorIs(bgColor);
       }
-
+      
+      // capturing draw
       virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
         float gx = x_*pscale+px;
         float gy = y_*pscale+py;
@@ -609,8 +613,32 @@ namespace evp {
         if (onDraw_) {onDraw_(gx,gy,dx_,dy_,pscale,target);}
       }
       void onDrawIs(std::function<void(float,float,float,float,float,sf::RenderTarget&)> _onDraw) {onDraw_=_onDraw;}
+    
+      // capturing mouseDown
+      typedef std::function<bool(const bool, const float, const float)> onMouseDownStart_f;
+      virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
+        if(onMouseDownStart_) {return onMouseDownStart_(isFirstDown,x,y);}
+	return false;
+      }
+      void onMouseDownStartIs(onMouseDownStart_f f) {onMouseDownStart_ = f;}
+      
+      typedef std::function<bool(const bool, const float, const float,float&,float&,Area* const over)> onMouseDown_f;
+      virtual bool onMouseDown(const bool isCaptured,const float x,const float y,float &dx, float &dy,Area* const over) {
+        if(onMouseDown_) {return onMouseDown_(isCaptured,x,y,dx,dy,over);}
+	return true;// keep drag
+      }
+      void onMouseDownIs(onMouseDown_f f) {onMouseDown_ = f;}
+
+      typedef std::function<void(const bool, const bool, const float, const float,Area* const over)> onMouseDownEnd_f;
+      virtual void onMouseDownEnd(const bool isCaptured, const bool isLastDown,const float x,const float y,Area* const over) {
+        if(onMouseDownEnd_) {return onMouseDownEnd_(isCaptured,isLastDown,x,y,over);}
+      }
+      void onMouseDownEndIs(onMouseDownEnd_f f) {onMouseDownEnd_ = f;}
     protected:
       std::function<void(float,float,float,float,float,sf::RenderTarget&)> onDraw_;//gx,gy,dx,dy,scale,target
+      onMouseDownStart_f onMouseDownStart_;
+      onMouseDown_f onMouseDown_;
+      onMouseDownEnd_f onMouseDownEnd_;
     };
     
     class TextInput : public Area {
@@ -754,6 +782,9 @@ namespace evp {
       bool isPaste_ = true;
     };
     
+    // set up window where one can pick a color
+    void makeColorPickerWindow(Area* const parent, const float x, const float y);
+    
     class Window : public Area {
     public:
       Window(const std::string& name,Area* const parent, const float x,const float y,const float dx,const float dy, const std::string title)
@@ -845,7 +876,6 @@ namespace evp {
         cx = borderSize;
         cy = headerSize;
       }
-
 
     protected:
       std::string title_;

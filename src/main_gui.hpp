@@ -149,10 +149,16 @@ static void setUpBaseWindow(evp::GUI::Area* const parent) {
     window->childSize(dx,dy);
     window->childOffset(x,y);
 
-    evp::GUI::Button* be = new evp::GUI::Button("buttonEditor",window,x+5,y+5,90,20,"new Editor");
+    evp::GUI::Button* be = new evp::GUI::Button("buttonEditor",window,x+5,y+5,180,20,"new Editor");
     be->onClickIs([parent]() {
       Editor* e = new Editor(parent);
     });
+
+    evp::GUI::Button* bc = new evp::GUI::Button("buttonCP",window,x+5,y+30,180,20,"new Color Picker");
+    bc->onClickIs([parent]() {
+      evp::GUI::makeColorPickerWindow(parent, 100,100);
+    });
+ 
   }
 }
 
