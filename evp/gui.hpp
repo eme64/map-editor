@@ -1577,7 +1577,7 @@ namespace evp {
 	        int delta = event.mouseWheelScroll.delta;
 	        int msx = event.mouseWheelScroll.x;
 	        int msy = event.mouseWheelScroll.y;
-
+                
                 if (event.mouseWheelScroll.wheel == sf::Mouse::VerticalWheel) {
                   mouseOverArea_->onMouseWheelScrolled(0,delta,msx,msy);
 		} else if(event.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel){

@@ -225,6 +225,24 @@ public:
 	   );
       }
     }
+    if(mode_==1) {
+      // draw
+      for(int cc : cellsSelected_) {
+        evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cc];
+        for(int i=0;i<cell.corners.size();i++) {
+          int i2 = (i+1) % cell.corners.size();
+          evp::Point &p1 = cell.corners[i];
+          evp::Point &p2 = cell.corners[i2];
+          evp::DrawLine(
+             gx + zoom_*p1.x,
+             gy + zoom_*p1.y,
+             gx + zoom_*p2.x,
+             gy + zoom_*p2.y,
+             target, evp::Color(1,1,1,1) - evp::Color(cell.color) + evp::Color(0,0,0,1)
+             );
+        }
+      }
+    }
 
     if(!showHUD_ && parent() && parent()->parent()) {
       float xx = parent()->parent()->globalX();
@@ -238,8 +256,13 @@ public:
       evp::DrawRect(xx+2,yy+2,300,300,target,evp::Color(0,0,0,0.7));
       evp::DrawText(xx+5,yy+5,"[H] hide HUD",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+20,modeText[mode_],12,target,evp::Color(1,1,1));
-      evp::DrawText(xx+5,yy+35,"[M]ove   [S]elect   [D]raw",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+35,"[M]ove",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+50,"[D]raw - [Alt + scrol] pen-size",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+65,"[S]elect",12,target,evp::Color(1,1,1));
+      
       evp::DrawText(xx+5,yy+100,"[P + up/down] Palette Selection",12,target,evp::Color(1,1,1));
+      
+
     }
   }
   void zoomIs(const float z) {
@@ -268,6 +291,14 @@ public:
     } else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
      ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift)) {
       a->doScroll(-dy*10,-dx*10);// invert scroll axes
+    } else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LAlt)
+     ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RAlt)) {
+      drawRadiusIs(drawRadius_ * pow(1.1,-dy));
+      float gx = globalX();
+      float gy = globalY();
+      float vx = (x-gx)/zoom_;
+      float vy = (y-gy)/zoom_;
+      updateCellSelection(vx,vy,cellOver_);
     } else {
       a->doScroll(-dx*10,-dy*10);
     }
@@ -278,9 +309,18 @@ public:
     float vy = py/zoom_;
     size_t cid = vmap->getCell(vx,vy,0);
     cellOver_ = cid;
+
+    if(mode_==1) {// in Draw mode:
+      updateCellSelection(vx,vy,cid);
+    }
   }
+  void updateCellSelection(float x, float y, size_t cellId) {
+    vmap->getCellsInRadius(x,y,drawRadius_ ,cellId,cellsSelected_);
+  }
+
   virtual void onMouseOverEnd() {
     cellOver_ = -1;
+    cellsSelected_.clear();
   }
 
   virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
@@ -309,12 +349,19 @@ public:
       break;}
       case 1: { // Draw
         long pid = paletteArea_->selectedId();
-        if(cellOver_>=0 && pid>=0) {
-          evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
-          cell.info.paletteId = pid;
-          wantMapColorize_=true;
-        } 
-      break;}
+        if(pid>=0) {
+	  if(cellOver_>=0) {
+            evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
+            cell.info.paletteId = pid;
+            wantMapColorize_=true;
+          } 
+          for(int cc : cellsSelected_) {
+            evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cc];
+            cell.info.paletteId = pid;
+            wantMapColorize_=true;
+	  } 
+	}
+	break;}
       case 2: {
         // Select
         if(cellOver_>=0) {
@@ -343,35 +390,22 @@ public:
       case sf::Keyboard::Key::M:{mode_ = 0; break;}
       case sf::Keyboard::Key::D:{mode_ = 1; break;}
       case sf::Keyboard::Key::S:{mode_ = 2; break;}
-      //case sf::Keyboard::Key::Right:{currsorMove(1); break;}
-      //case sf::Keyboard::Key::Escape:{unFocus(); break;}
-      //case sf::Keyboard::Key::Return:{unFocus(); break;}
-      //case sf::Keyboard::Key::Delete:{currsorDel(); break;}
-      //case sf::Keyboard::Key::BackSpace:{currsorBack(); break;}
-      //case sf::Keyboard::Key::Period:{currsorPut(46); break;}
-      //case sf::Keyboard::Key::Comma:{currsorPut(44); break;}
-      //default: {
-      //  if(keyCode >=0 && keyCode <=25) {
-      //    if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)
-      //       ||sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift)) {
-      //  currsorPut(65+keyCode);
-      //    } else {
-      //  currsorPut(97+keyCode);
-      //    }
-      //  } else if(keyCode >=26 && keyCode <=35) {
-      //    currsorPut(48+keyCode-26);
-      //  }
-      //  break;}
     }
   }
- 
+  
+  void drawRadiusIs(float r) {
+    drawRadius_ = std::min(1e3f,std::max(1.f,r));
+    std::cout << drawRadius_ << "\n";
+  }
 
 private:
   evp::VoronoiMap<CInfo>* vmap;
   float zoom_=1.0;
+  float drawRadius_=100.0;
   bool hasData_=false;
   PaletteArea* paletteArea_;
   size_t cellOver_ = -1;
+  std::vector<size_t> cellsSelected_;
   bool wantMapColorize_ = false;
 
   // Command options:
@@ -388,7 +422,7 @@ private:
 class Editor {
 public:
   Editor(evp::GUI::Area* const parent) {
-    window = new evp::GUI::Window("editor",parent,200,200,300,300,"Editor");
+    window = new evp::GUI::Window("editor",parent,200,20,500,500,"Editor");
     float x,y,dx,dy;
     window->childSize(dx,dy);
     window->childOffset(x,y);

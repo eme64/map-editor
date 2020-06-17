@@ -244,6 +244,20 @@ struct VoronoiMap
     return res;
   }
 
+  void getCellsInRadius(float x, float y, float r, size_t anchor_cell, std::vector<size_t> &output) {
+    output.clear();
+    // TODO: see if a BFS would be faster.
+    float r2 = r*r;
+
+    for(size_t i = 0; i<num_cells; i++) {
+      float dx = x - cells[i].pos.x;
+      float dy = y - cells[i].pos.y;
+
+      float d2 = dx*dx + dy*dy;
+      if(d2 <= r2) {output.push_back(i);}
+    }
+  }
+
   //size_t getCell(float x, float y)
   //{
   //  size_t res = 0;
