@@ -135,8 +135,8 @@ void evp::GUI::makeColorPickerWindow(evp::GUI::Area* const parent, const float x
   
   float* cols = new float[3]();
   cols[0] = 0;
-  cols[1] = 0;
-  cols[2] = 0;
+  cols[1] = 1;
+  cols[2] = 1;
   
   evp::GUI::ColorSlot* cs = new evp::GUI::ColorSlot("colorSlot",window,
 		                  x,y+dy-20,dx,20,evp::Color(0,0,0));

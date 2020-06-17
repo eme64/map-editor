@@ -48,9 +48,11 @@ namespace evp {
       this->a = std::min(1.0f,std::max(0.0f,a));
     }
     Color() : Color(0,0,0) {}
+    Color(const sf::Color c) : Color(c.r/255.0,c.g/255.0,c.b/255.0,c.a/255.0) {}
 
     Color operator*(const float scale) {return Color(scale*r,scale*g,scale*b,a);}
     Color operator+(const Color &c) {return Color(r+c.r,g+c.r,b+c.b,a+c.a);}
+    Color operator-(const Color &c) {return Color(r-c.r,g-c.g,b-c.b,a-c.a);}
 
     sf::Color toSFML() const {
       return sf::Color(255.0*r,255.0*g,255.0*b,255.0*a);

@@ -114,6 +114,14 @@ public:
     }
   }
 
+  long selectedId() {
+    if(pcolor.find(selectedId_)!=pcolor.end()) {
+      return selectedId_;
+    } else {
+      return -1;
+    }
+  }
+
 private:
   std::map<int,std::string> pname;
   std::map<int,evp::Color> pcolor;
@@ -139,6 +147,7 @@ public:
      });
   }
   void mapInitialize() {
+    wantMapColorize_ = false;
     // set CInfo for all cells:
     for(auto &c : vmap->cells) {
       c.info.paletteId = 1;
@@ -157,7 +166,26 @@ public:
     float gy = y_+py*pscale;
     DrawRect(gx, gy, dx_*pscale, dy_*pscale, target,
 		    evp::HSVToColor((float)rand()/(RAND_MAX),0.5,0.5));
+    if(wantMapColorize_) {
+      mapColorize();
+    }
     vmap->draw(gx,gy,zoom_,target);
+    
+    if(cellOver_>=0) {
+      evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
+      for(int i=0;i<cell.corners.size();i++) {
+        int i2 = (i+1) % cell.corners.size();
+	evp::Point &p1 = cell.corners[i];
+	evp::Point &p2 = cell.corners[i2];
+	evp::DrawLine(
+	   gx + zoom_*p1.x,
+	   gy + zoom_*p1.y,
+	   gx + zoom_*p2.x,
+	   gy + zoom_*p2.y,
+	   target, evp::Color(1,1,1,1) - evp::Color(cell.color) + evp::Color(0,0,0,1)
+	   );
+      }
+    }
   }
   void zoomIs(const float z) {
     zoom_ = std::min(1e2f, std::max(1e-2f,z));
@@ -189,11 +217,47 @@ public:
       a->doScroll(-dx*10,-dy*10);
     }
   }
+
+  virtual void onMouseOver(const float px,const float py,const float pscale) {
+    float vx = px/zoom_;
+    float vy = py/zoom_;
+    size_t cid = vmap->getCell(vx,vy,0);
+    cellOver_ = cid;
+  }
+  virtual void onMouseOverEnd() {
+    cellOver_ = -1;
+  }
+
+  virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
+    if (isFirstDown) {
+      setFocus();
+      doAction();
+      return true; // capture
+    }
+    return false;
+  }
+
+  virtual bool onMouseDown(const bool isCaptured,const float x,const float y,float &dx, float &dy,Area* const over) {
+    if(isCaptured) {doAction();}
+    return true;
+  }
+  
+  void doAction() {
+    long pid = paletteArea_->selectedId();
+    if(cellOver_>=0 && pid>=0) {
+      evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
+      cell.info.paletteId = pid;
+      wantMapColorize_=true;
+    } 
+  }
+
 private:
   evp::VoronoiMap<CInfo>* vmap;
   float zoom_=1.0;
   bool hasData_=false;
   PaletteArea* paletteArea_;
+  size_t cellOver_ = -1;
+  bool wantMapColorize_ = false;
 };
 
 
