@@ -68,16 +68,58 @@ public:
     
     float ypos = 0;
     // add all palette items
-    // TODO
-    for(int i=0;i<10;i++) {
-       evp::GUI::ColorSlot* s = new evp::GUI::ColorSlot("colorSlot_"+std::to_string(i),
-		                                      this,5,ypos+5,100,20,
-						      evp::ColorHue(i*0.7));
-       if(i%2==0) {s->isPasteIs(false);}
-       s->onColorIs([](const evp::Color c) {
-         std::cout << "onColor: " << c.r << " " << c.g << " " << c.b << "\n";
-       });
-       ypos+=25;
+    for(auto it : pname) {
+      int id = it.first;
+      
+      // label, color slot
+      evp::GUI::Label* l = new evp::GUI::Label("label_"+std::to_string(id),
+		                              this,2,2+ypos,10,std::to_string(id),
+					      evp::Color(1,1,1)
+		                              );
+      evp::GUI::ColorSlot* s = new evp::GUI::ColorSlot("colorSlot_"+std::to_string(id),
+       	                                      this,40,ypos+2,100,20,
+       					      pcolor[id]);
+      s->onColorIs([this,id](const evp::Color c) {
+	pcolor[id] = c;
+      });
+
+      // text field
+      auto ti = new evp::GUI::TextInput("nameInput_"+std::to_string(id),this,
+		                        30,ypos+25,150,20,it.second);
+      ti->onTextIs([id,this](std::string s){
+        pname[id] = s;
+      });
+
+      // delete button
+      evp::GUI::Button* delb = new evp::GUI::Button("delB_"+std::to_string(id),
+		      this,2,ypos+27,16,16,"-");
+      delb->onClickIs([this,id,delb]() {
+        pname.erase(id);
+        pcolor.erase(id);
+        repopulate();
+      });
+ 
+      // background
+      evp::GUI::AreaDraw* da = new evp::GUI::AreaDraw("bg_"+std::to_string(id), this,
+            	                                  0,ypos,200,50);
+
+      da->onDrawIs([id,this](float x, float y, float dx, float dy, float scale, sf::RenderTarget& target){
+        if(selectedId_ == id) {
+	  evp::DrawRect(x, y, dx, dy, target, evp::Color(1,1,1));
+	  evp::DrawRect(x+1, y+1, dx-2, dy-2, target, evp::Color(0,0,0));
+	} else {
+	  evp::DrawRect(x, y, dx, dy, target, evp::Color(0.2,0.2,0.2));
+	  evp::DrawRect(x+1, y+1, dx-2, dy-2, target, evp::Color(0,0,0));
+	}
+      });
+      da->onMouseDownStartIs([id,this,da](const bool isFirstDown, const float x, const float y){
+        if(isFirstDown) {
+	  selectedId_ = id;
+	}
+	return false;
+      });
+
+      ypos+=50;
     }
 
     // add plus button
@@ -90,11 +132,21 @@ public:
   }
   void addNewItem() {
     std::cout << "addNewItem\n";
+    int idMax = 0;
+    for(auto it : pname) {
+      idMax = std::max(idMax, it.first);
+    }
+    
+    int id = idMax+1;
+    pname[id] = "new";
+    pcolor[id] = evp::Color(0,0,0);
+
     repopulate();
   }
 private:
   std::map<int,std::string> pname;
   std::map<int,evp::Color> pcolor;
+  int selectedId_=0;
 };
 
 class Editor {

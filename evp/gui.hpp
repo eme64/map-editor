@@ -47,6 +47,7 @@ namespace evp {
       this->b = std::min(1.0f,std::max(0.0f,b));
       this->a = std::min(1.0f,std::max(0.0f,a));
     }
+    Color() : Color(0,0,0) {}
 
     Color operator*(const float scale) {return Color(scale*r,scale*g,scale*b,a);}
     Color operator+(const Color &c) {return Color(r+c.r,g+c.r,b+c.b,a+c.a);}
@@ -370,7 +371,7 @@ namespace evp {
         // cannot use original, bc is modified by children
         for (auto &c : cCopy) {
           std::cout << "inc" << c->fullName() << std::endl;
-          c->doDelete(false);
+          c->doDelete(true);
           std::cout << "outc" << std::endl;
         }
       }
@@ -732,7 +733,7 @@ namespace evp {
       ColorSlot(const std::string& name,Area* const parent,
 		const float x,const float y,const float dx,const float dy,
 		const Color colorVal,
-                const std::vector<Color> bgColors = std::vector<Color>{Color(0,0,0),Color(0.7,0.7,0.7),Color(1,1,1)}
+                const std::vector<Color> bgColors = std::vector<Color>{Color(0.2,0.2,0.2),Color(0.5,0.5,0.5),Color(1,1,1)}
 	       ) : Area(name,parent,x,y,dx,dy), colorVal_(colorVal), bgColors_(bgColors) {}
       virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
         float gx = x_*pscale+px;
@@ -1584,9 +1585,9 @@ namespace evp {
                 if (mouseOverArea_) {
                   mouseDownArea_ = mouseOverArea_;
                   mouseDownCaptured_ = mouseOverArea_->onMouseDownStart(true,lastMouseX_,lastMouseY_);
-                  if (mouseDownCaptured_) {
-                    std::cout << "mouseDownEvent captured by " << mouseOverArea_->fullName() << std::endl;
-                  }
+                  //if (mouseDownCaptured_) {
+                  //  std::cout << "mouseDownEvent captured by " << mouseOverArea_->fullName() << std::endl;
+                  //}
                 }
               } else if(event.mouseButton.button == sf::Mouse::Right) {
                 // forget for now
