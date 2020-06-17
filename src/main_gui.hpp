@@ -61,7 +61,8 @@ public:
     float x,y,dx,dy;
     window->childSize(dx,dy);
     window->childOffset(x,y);
- 
+    
+    // options on top
     fileName = new evp::GUI::TextInput("fileNameInput",window,x,y,200,20,"file.txt");
 
     evp::GUI::Button* loadb = new evp::GUI::Button("buttonLoad",window,x+205,y,50,20,"Load");
@@ -72,11 +73,20 @@ public:
     storeb->onClickIs([this]() {
       store();
     });
+    
+    int topBarOffset = 100;
+    
+    // palette on left side
+    evp::GUI::Area* palette = new evp::GUI::Area("paletteArea",NULL,0,0,100,600);
+    palette->colorIs(evp::Color(1,1,0));
+    evp::GUI::Area* scrollp = new evp::GUI::ScrollArea("scrollp",window,palette,x,y+topBarOffset,195,dy);
+    scrollp->fillParentIs(false,true,true);
 
+    // MapArea in center / bottom-right
     mapArea = new MapArea(NULL,10000,1000,1000);
-    evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x,y+100,dx,dy);
+    evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x+200,y+topBarOffset,dx,dy);
     mapArea->colorIs(evp::Color(1,0,0));
-    scroll->fillParentIs(true,true);
+    scroll->fillParentIs(true,true,true);
   }
   void load() {std::cout << "**LOAD**\n";}
   void store() {std::cout << "**STORE**\n";}

@@ -274,18 +274,27 @@ namespace evp {
       }
 
       void onResizeParent() {
-        if (fillParent_&&parent_) {
+        if (parent_) {
           float cdx,cdy,cx,cy;
           parent_->childSize(cdx,cdy);
           parent_->childOffset(cx,cy);
-          if(fillParentWithOffset_) {
-	    sizeIs(cdx-x_+cx,cdy-y_+cy);
-            //positionIs(cx,cy);
-	  } else {
-	    sizeIs(cdx,cdy);
-            positionIs(cx,cy);
+          if (fillParentX_&&parent_) {
+            if(fillParentWithOffset_) {
+	      sizeIs(cdx-x_+cx,dy_);
+	    } else {
+	      sizeIs(cdx,dy_);
+              positionIs(cx,y_);
+	    }
 	  }
-        }
+	  if (fillParentY_&&parent_) {
+            if(fillParentWithOffset_) {
+	      sizeIs(dx_,cdy-y_+cy);
+	    } else {
+	      sizeIs(dx_,cdy);
+              positionIs(x_,cy);
+	    }
+	  }
+	}
       }
 
       virtual void onMouseOverStart() {}
@@ -360,10 +369,11 @@ namespace evp {
         //std::cout << "position: " << fullName() << std::endl;
       }
 
-      Area* fillParentIs(bool const value,bool const withOffset=false) {
-        fillParent_ = value;
+      Area* fillParentIs(bool const fillX, bool const fillY, bool const withOffset) {
+        fillParentX_ = fillX;
+        fillParentY_ = fillY;
 	fillParentWithOffset_ = withOffset;
-        if (fillParent_) {onResizeParent();}
+        if (fillParentX_ || fillParentY_) {onResizeParent();}
         return this;}
       Area* childIs(Area* c) {children_.push_back(c); return this;}
       void childDel(Area* c) {children_.remove(c);}
@@ -469,7 +479,8 @@ namespace evp {
         return found;
       }
       float x_,y_,dx_,dy_; // x,y relative to parent
-      bool fillParent_ = false;
+      bool fillParentX_ = false;
+      bool fillParentY_ = false;
       bool fillParentWithOffset_=false;
       Color bgColor_ = Color(0.05,0.05,0.1);
       bool isFocus_=false;
@@ -667,7 +678,7 @@ namespace evp {
       virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
         float gx = x_*pscale+px;
         float gy = y_*pscale+py;
-        int state = isFocus();
+        int state = isFocus()?2:(mouseOver_?1:0);
 	DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColors_[state]);
 	std::string p0 = text_.substr(0,currsorIdx);
 	std::string p1 = text_.substr(currsorIdx);
@@ -677,6 +688,10 @@ namespace evp {
 	}
 	DrawText(gx+1+tdx, gy+1, p1, (16)*pscale, target, textColors_[state]);
       }
+
+      virtual void onMouseOverStart() {if (!mouseOver_) {mouseOver_=true;}}
+      virtual void onMouseOverEnd() {if (mouseOver_) {mouseOver_=false;}}
+
       virtual void onKeyPressed(const sf::Keyboard::Key keyCode) {
         switch (keyCode) {
           case sf::Keyboard::Key::Left:{currsorMove(-1); break;}
@@ -734,6 +749,7 @@ namespace evp {
       Color currsorColor_;
       int currsorIdx;
       std::function<void(const std::string&)> onText_;
+      bool mouseOver_ = false;
     };
 
     class Window : public Area {
@@ -1466,7 +1482,7 @@ namespace evp {
         renderWindow_->setKeyRepeatEnabled(false);
 
         sf::Vector2u size = renderWindow_->getSize();
-        mainArea_ = (new evp::GUI::Area("main",NULL,0,0,size.x,size.y))->fillParentIs(true);
+        mainArea_ = (new evp::GUI::Area("main",NULL,0,0,size.x,size.y))->fillParentIs(true,true,false);
         mainArea_->onDeleteIs([this](Area* const a) {
           forgetArea(a);
         });
