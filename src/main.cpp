@@ -9,11 +9,20 @@
 
 #include "main_gui.hpp"
 
+// Ideas:
+//
+// Done: #
+// Open: -
+//
+// # New: set size and number points
+// - Data Layers: list of layers (int, float, string?) - visualization and coloring?
+// - Objects: key-value pairs. Icons + names?
+
 //-------------------------------------------------------- Main
 int main()
 {
   // ------------------------------------ WINDOW
-  evp::GUI::MasterWindow* masterWindow = new evp::GUI::MasterWindow(1000,600,"window title",false);
+  evp::GUI::MasterWindow* masterWindow = new evp::GUI::MasterWindow(1000,600,"Voronoi Map Editor",false);
 
   setUpBaseWindow(masterWindow->area());
 

@@ -210,6 +210,12 @@ public:
   }
   void load(const std::string& fileName);
   void save(const std::string& fileName);
+  
+  void generate(size_t n_cells, float s_x, float s_y) {
+    vmap->generate(n_cells, s_x, s_y);
+    mapInitialize();
+    mapColorize();
+  }
 
   void mapInitialize() {
     wantMapColorize_ = false;
@@ -218,6 +224,8 @@ public:
       c.info.paletteId = 1;
       c.info.colFac = 1 - ((float)rand()/(RAND_MAX))*0.2;
     }
+    cellOver_ = -1;
+    cellsSelected_.clear();
   }
   void mapColorize() {
     // set colors according to new data
@@ -430,7 +438,7 @@ private:
   float drawRadius_=100.0;
   bool hasData_=false;
   PaletteArea* paletteArea_;
-  size_t cellOver_ = -1;
+  long cellOver_ = -1;
   std::vector<size_t> cellsSelected_;
   bool wantMapColorize_ = false;
 
@@ -454,10 +462,14 @@ public:
     window->childOffset(x,y);
     
     // options on top
-    fileName = new evp::GUI::TextInput("fileNameInput",window,x,y,200,20,"file.txt");
+    evp::GUI::Label* lFN = new evp::GUI::Label("labelFileName",
+		                             window,x,y,10,"File Name",
+					     evp::Color(0,0,0)
+		                             );
+    fileName = new evp::GUI::TextInput("fileNameInput",window,x,y+15,200,20,"file.txt");
 
-    evp::GUI::Button* loadb = new evp::GUI::Button("buttonLoad",window,x+205,y,50,20,"Load");
-    evp::GUI::Button* saveb = new evp::GUI::Button("buttonSave",window,x+265,y,50,20,"Save");
+    evp::GUI::Button* loadb = new evp::GUI::Button("buttonLoad",window,x+205,y,50,15,"Load");
+    evp::GUI::Button* saveb = new evp::GUI::Button("buttonSave",window,x+205,y+20,50,15,"Save");
     loadb->onClickIs([this]() {
       load();
     });
@@ -465,7 +477,51 @@ public:
       save();
     });
     
-    int topBarOffset = 100;
+    int offX = 280;
+    evp::GUI::Label* lSX = new evp::GUI::Label("labelSizeX",
+		                             window,x+offX,y,10,"size x",
+					     evp::Color(0,0,0)
+		                             );
+    auto* sizeX = new evp::GUI::TextInput("sizeXInput",window,x+offX,y+15,60,20,"100");
+    int offX2 = offX+65;
+    evp::GUI::Label* lSY = new evp::GUI::Label("labelSizeY",
+		                             window,x+offX2,y,10,"size y",
+					     evp::Color(0,0,0)
+		                             );
+    auto* sizeY = new evp::GUI::TextInput("sizeYInput",window,x+offX2,y+15,60,20,"100");
+    int offX3 = offX2+65;
+    evp::GUI::Label* lSP = new evp::GUI::Label("labelNumPoints",
+		                             window,x+offX3,y,10,"#cells",
+					     evp::Color(0,0,0)
+		                             );
+    auto* sizeP = new evp::GUI::TextInput("numPInput",window,x+offX3,y+15,60,20,"1000");
+    int offX4 = offX3+65;
+    
+    evp::GUI::Button* genb = new evp::GUI::Button("buttonGenerate",window,x+offX4,y+20,60,15,"Generate");
+    genb->onClickIs([this, sizeX, sizeY, sizeP]() {
+      std::cout << "Generate!\n";
+      // validate input
+      int sx = std::atof(sizeX->text().c_str());
+      int sy = std::atof(sizeY->text().c_str());
+      int sp = std::atoi(sizeP->text().c_str());
+      bool fail = false;
+      if(sx < 1    ) {fail=true; sx=1;}
+      if(sx > 10000) {fail=true; sx=10000;}
+      if(sy < 1    ) {fail=true; sy=1;}
+      if(sy > 10000) {fail=true; sy=10000;}
+      if(sp < 1    ) {fail=true; sp=1;}
+      if(sp > 100000) {fail=true; sp=100000;}
+      
+      sizeX->textIs(std::to_string(sx));
+      sizeY->textIs(std::to_string(sy));
+      sizeP->textIs(std::to_string(sp));
+
+      if(fail) {return;}
+      
+      mapArea->generate(sp,sx,sy);
+    });
+    
+    int topBarOffset = 50;
     
     // palette on left side
     paletteArea = new PaletteArea(NULL);

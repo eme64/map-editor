@@ -97,6 +97,8 @@ void MapArea::load(const std::string& fileName) {
 	      int pid = std::atoi(parts[1].c_str());
 	      int nc = std::atoi(parts[2].c_str());
 	      int nn = std::atoi(parts[3].c_str());
+	      float xx = std::stof(parts[4]);
+	      float yy = std::stof(parts[5]);
               
 	      auto &c = vmap->cells[lastId];
               c.info.paletteId = pid;
@@ -105,6 +107,8 @@ void MapArea::load(const std::string& fileName) {
 	      c.corners.reserve(nc);
 	      c.neighbors.clear();
 	      c.neighbors.reserve(nn);
+	      c.pos.x = xx;
+	      c.pos.y = yy;
 	    }
 	    
 	  break;}
@@ -146,12 +150,13 @@ void MapArea::save(const std::string& fileName) {
   myfile << vmap->spread_y << "\n";
   
   myfile << "@cells\n";
-  myfile << "#id,paletteId,n_corners,n_neighbors\n";
+  myfile << "#id,paletteId,n_corners,n_neighbors,posx,posy\n";
 
   for(size_t i = 0; i<vmap->num_cells; i++) {
     auto &c = vmap->cells[i];
     myfile << i << "," << c.info.paletteId << ",";
-    myfile << c.corners.size() << "," << c.neighbors.size() << "\n";
+    myfile << c.corners.size() << "," << c.neighbors.size() << ",";
+    myfile << c.pos.x << "," << c.pos.y << "\n";
 
     for(int k=0;k<c.corners.size();k++) {
       myfile << "*" << c.corners[k].x << "," << c.corners[k].y << "\n";

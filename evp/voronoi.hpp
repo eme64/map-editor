@@ -78,9 +78,23 @@ struct VoronoiMap
 
   VoronoiMap(size_t n_cells, float s_x, float s_y)
   {
+    generate(n_cells,s_x,s_y);
+  }
+
+  void reconfigure(size_t n_cells, float s_x, float s_y) {
     num_cells = n_cells;
     spread_x = s_x;
     spread_y = s_y;
+    
+    cells.resize(num_cells);
+    for(size_t i=0;i<num_cells;i++) {
+      cells[i].neighbors.clear();
+      cells[i].corners.clear();
+    }
+  }
+  
+  void generate(size_t n_cells, float s_x, float s_y) {
+    reconfigure(n_cells, s_x, s_y);
 
     // --------------------------- Prepare Points
     jcv_point* points = NULL;
@@ -110,8 +124,6 @@ struct VoronoiMap
     }
 
     // ----------------  extract graph
-    cells.resize(num_cells);
-
     for(size_t i = 0; i<num_cells; i++)
     {
       cells[i].pos.x = points[i].x;
@@ -145,14 +157,6 @@ struct VoronoiMap
     voronoi_free(diagram);
 
     create_mesh();
-  }
-
-  void reconfigure(size_t n_cells, float s_x, float s_y) {
-    num_cells = n_cells;
-    spread_x = s_x;
-    spread_y = s_y;
-    
-    cells.resize(num_cells);
   }
 
   void create_mesh()

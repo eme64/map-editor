@@ -722,6 +722,11 @@ namespace evp {
 	if(onText_) {onText_(text_);}
 	currsorIdx+=1;
       }
+      
+      void textIs(const std::string &s) {
+        text_ = s;
+	if(onText_) {onText_(text_);}
+      }
 
       std::string text() {return text_;}
       void onTextIs(std::function<void(const std::string&)> f) {onText_=f;}
@@ -797,7 +802,7 @@ namespace evp {
     public:
       Window(const std::string& name,Area* const parent, const float x,const float y,const float dx,const float dy, const std::string title)
       : Area(name,parent,x,y,dx,dy),title_(title){
-        bgColor_ = Color(0.5,0.5,0.5);
+        bgColor_ = Color(0.45,0.4,0.4);
         closeButton_ = new Button("close",this,borderSize,borderSize,headerSize-2*borderSize,headerSize-2*borderSize,"X",
                                         std::vector<Color>{Color(0.5,0,0),Color(0.4,0,0),Color(0.2,0,0),Color(0.2,0,0)},
                                         std::vector<Color>{Color(1,0.5,0.5),Color(1,0.8,0.8),Color(0.6,0.1,0.1),Color(0.5,0,0)}
