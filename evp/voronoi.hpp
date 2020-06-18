@@ -146,6 +146,15 @@ struct VoronoiMap
 
     create_mesh();
   }
+
+  void reconfigure(size_t n_cells, float s_x, float s_y) {
+    num_cells = n_cells;
+    spread_x = s_x;
+    spread_y = s_y;
+    
+    cells.resize(num_cells);
+  }
+
   void create_mesh()
   {
     mesh.clear();

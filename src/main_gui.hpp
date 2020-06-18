@@ -1,6 +1,10 @@
 #ifndef EVP_MAIN_GUI_HPP
 #define EVP_MAIN_GUI_HPP
 
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <sstream> // stringstream
 
 #include "../evp/gui.hpp"
 #include "../evp/voronoi.hpp"
@@ -19,6 +23,8 @@ public:
     pcolor[1] = evp::Color(1,1,1);
     repopulate();
   }
+  void save(std::ofstream &myfile);
+
   void repopulate() {
     // remove all children, repopulate
     doDeleteChildren();
@@ -163,6 +169,19 @@ public:
     if(pcolor.find(pid)!=pcolor.end()) {
       selectedId_ = pid;
     }
+  }
+  
+  void clear() {
+    pname.clear();
+    pcolor.clear();
+    selectedId_=0;
+    onUpdate();
+  }
+
+  void addItem(const int id, const std::string &name, const evp::Color col) {
+    pname[id] = name;
+    pcolor[id] = col;
+    onUpdate();
   }
 
 private:
@@ -460,11 +479,9 @@ public:
     scroll->fillParentIs(true,true,true);
   }
   void load() {
-    std::cout << "**LOAD**"<< fileName->text() <<"\n";
     mapArea->load(fileName->text());
   }
   void save() {
-    std::cout << "**SAVE**"<< fileName->text() <<"\n";
     mapArea->save(fileName->text());
   }
 private:
