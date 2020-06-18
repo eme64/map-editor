@@ -1,3 +1,7 @@
+#ifndef EVP_MAIN_GUI_HPP
+#define EVP_MAIN_GUI_HPP
+
+
 #include "../evp/gui.hpp"
 #include "../evp/voronoi.hpp"
 
@@ -185,6 +189,9 @@ public:
        mapColorize();
      });
   }
+  void load(const std::string& fileName);
+  void save(const std::string& fileName);
+
   void mapInitialize() {
     wantMapColorize_ = false;
     // set CInfo for all cells:
@@ -431,12 +438,12 @@ public:
     fileName = new evp::GUI::TextInput("fileNameInput",window,x,y,200,20,"file.txt");
 
     evp::GUI::Button* loadb = new evp::GUI::Button("buttonLoad",window,x+205,y,50,20,"Load");
-    evp::GUI::Button* storeb = new evp::GUI::Button("buttonStore",window,x+265,y,50,20,"Store");
+    evp::GUI::Button* saveb = new evp::GUI::Button("buttonSave",window,x+265,y,50,20,"Save");
     loadb->onClickIs([this]() {
       load();
     });
-    storeb->onClickIs([this]() {
-      store();
+    saveb->onClickIs([this]() {
+      save();
     });
     
     int topBarOffset = 100;
@@ -452,8 +459,14 @@ public:
     mapArea->colorIs(evp::Color(1,0,0));
     scroll->fillParentIs(true,true,true);
   }
-  void load() {std::cout << "**LOAD**\n";}
-  void store() {std::cout << "**STORE**\n";}
+  void load() {
+    std::cout << "**LOAD**"<< fileName->text() <<"\n";
+    mapArea->load(fileName->text());
+  }
+  void save() {
+    std::cout << "**SAVE**"<< fileName->text() <<"\n";
+    mapArea->save(fileName->text());
+  }
 private:
   evp::GUI::Window* window;
   evp::GUI::TextInput* fileName;
@@ -485,3 +498,4 @@ static void setUpBaseWindow(evp::GUI::Area* const parent) {
 }
 
 
+#endif // EVP_MAIN_GUI_HPP
