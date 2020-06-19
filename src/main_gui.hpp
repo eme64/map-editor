@@ -404,6 +404,227 @@ private:
   std::function<void()> onUpdate_;
 };
 
+class Object {
+public:
+  Object(int _id, const std::string &_name, const float _x, const float _y, const evp::Color _color)
+	  : id(_id), name(_name), x(_x), y(_y), color(_color) {}
+  int id;
+  std::string name;
+  float x,y;
+  evp::Color color;
+  std::map<std::string,std::string> dict;
+private:
+};
+
+class ObjectListArea : public evp::GUI::Area{
+public:
+  ObjectListArea(evp::GUI::Area* const parent)
+	  : Area("objectListArea",parent,0,0,200,400) {
+    colorIs(evp::Color(0.05,0.05,0.05));
+    repopulate();
+  }
+  void save(std::ofstream &myfile);
+
+  void repopulate() {
+    // remove all children, repopulate
+    doDeleteChildren();
+    
+    float ypos = 0;
+    // add all dataLayer items
+    for(auto &it : objects_) {
+      int id = it.first;
+      Object* o = it.second;
+      
+      // label, color slot
+      evp::GUI::Label* l = new evp::GUI::Label("label_"+std::to_string(id),
+        	                              this,2,2+ypos,10,std::to_string(id),
+        				      evp::Color(1,1,1)
+        	                              );
+      evp::GUI::ColorSlot* s = new evp::GUI::ColorSlot("colorSlot_"+std::to_string(id),
+       	                                      this,40,ypos+2,20,20,
+       					      o->color);
+      s->onColorIs([this,id,o](const evp::Color c) {
+        o->color = c;
+        onUpdate();
+      });
+
+      // text field - name
+      auto ti = new evp::GUI::TextInput("nameInput_"+std::to_string(id),this,
+        	                        35,ypos+25,150,20,o->name);
+      ti->onTextIs([id,this,o](std::string s){
+        o->name = s;
+        onUpdate();
+      });
+
+      // x / y values
+      evp::GUI::Label* lx = new evp::GUI::Label("labelX_"+std::to_string(id),
+        	                              this,2,52+ypos,10,"X",
+        				      evp::Color(1,1,1)
+        	                              );
+      auto ix = new evp::GUI::TextInput("xInput_"+std::to_string(id),this,
+        	                        15,ypos+47,80,16,std::to_string(o->x));
+      ix->onTextCommitIs([id,this,o,ix](std::string s){
+	float x = std::atof(s.c_str());
+        ix->textIs(std::to_string(x));
+	o->x = x;
+	onUpdate();
+      });
+      evp::GUI::Label* ly = new evp::GUI::Label("labelY_"+std::to_string(id),
+        	                              this,102,52+ypos,10,"Y",
+        				      evp::Color(1,1,1)
+        	                              );
+      auto iy = new evp::GUI::TextInput("yInput_"+std::to_string(id),this,
+        	                        115,ypos+47,80,16,std::to_string(o->y));
+      iy->onTextCommitIs([id,this,o,iy](std::string s){
+       	float y = std::atof(s.c_str());
+        iy->textIs(std::to_string(y));
+	o->y = y;
+	onUpdate();
+      });
+
+
+      // delete button
+      evp::GUI::Button* delb = new evp::GUI::Button("delB_"+std::to_string(id),
+        	      this,2,ypos+27,16,16,"-");
+      delb->onClickIs([this,id,delb]() {
+        deleteObject(id);
+      });
+
+      // background
+      evp::GUI::AreaDraw* da = new evp::GUI::AreaDraw("bg_"+std::to_string(id), this,
+            	                                  0,ypos,200,70);
+
+      da->onDrawIs([id,this](float x, float y, float dx, float dy, float scale, sf::RenderTarget& target){
+        if(selectedId_ == id) {
+          evp::DrawRect(x, y, dx, dy, target, evp::Color(1,1,1));
+          evp::DrawRect(x+1, y+1, dx-2, dy-2, target, evp::Color(0,0,0));
+        } else {
+          evp::DrawRect(x, y, dx, dy, target, evp::Color(0.2,0.2,0.2));
+          evp::DrawRect(x+1, y+1, dx-2, dy-2, target, evp::Color(0,0,0));
+        }
+      });
+      da->onMouseDownStartIs([id,this,da](const bool isFirstDown, const float x, const float y){
+        if(isFirstDown) {
+          selectedId_ = id;
+        }
+        return false;
+      });
+
+      ypos+=70;
+    }
+
+    // add plus button
+    evp::GUI::Button* plusb = new evp::GUI::Button("buttonPlus",this,2,ypos+2,16,16,"+");
+    plusb->onClickIs([this]() {
+      newObject();
+    });
+    ypos+=20;
+    sizeIs(200,ypos);
+  }
+ 
+  void onUpdate() {
+    if(onUpdate_) {onUpdate_();}
+  }
+  void onUpdateIs(std::function<void()> f) {onUpdate_=f;}
+  
+  long selectedId() {
+    if(objects_.find(selectedId_)!=objects_.end()) {
+      return selectedId_;
+    } else {
+      return -1;
+    }
+  }
+
+  void selectNext() {
+    if(selectedId()<=0 && objects_.size()>0) {
+      selectedId_ = objects_.begin()->first;
+    } else if(objects_.size()>0) {
+      bool found = false;
+      int id = selectedId();
+      for(auto it : objects_) {
+        if(found) {
+          selectedId_ = it.first;
+          return;
+        } else if(it.first == id) {
+          found = true;
+        }
+        selectedId_ = objects_.begin()->first;
+      }
+    }
+  }
+  void selectPrev() {
+    if(selectedId()<=0 && objects_.size()>0) {
+      selectedId_ = objects_.begin()->first;
+    } else if(objects_.size()>0) {
+      int last = objects_.rbegin()->first;
+      int id = selectedId();
+      for(auto it : objects_) {
+        if(it.first == id) {
+          selectedId_ = last;
+          return;
+        }
+        last = it.first;
+      }
+    }
+  }
+
+  void select(int pid) {
+    if(objects_.find(pid)!=objects_.end()) {
+      selectedId_ = pid;
+    }
+  }
+  
+  ///  void clear() {
+  ///    lname.clear();
+  ///    lcolor.clear();
+  ///    lshow.clear();
+  ///    ledit.clear();
+  ///    selectedId_=0;
+  ///    //onUpdate(); // hmm this was buggy
+  ///  }
+
+  ///  void addItem(const int id, const std::string &name, const evp::Color col, const bool isShow, const bool isEdit, const std::string &value) {
+  ///    lname[id] = name;
+  ///    lcolor[id] = col;
+  ///    lshow[id] = isShow;
+  ///    ledit[id] = isEdit;
+  ///    lvalue[id] = value;
+  ///    onUpdate();
+  ///  }
+ 
+  void newObject() {
+    int idMax = 0;
+    for(auto &it : objects_) {
+      idMax = std::max(idMax, it.first);
+    }
+    
+    int id = idMax+1;
+    Object* o = new Object(id, "obj_"+std::to_string(id), 0,0, evp::Color(0,0,0));
+    
+    objects_[id] = o;
+
+    repopulate();
+    onUpdate();
+  }
+  
+  Object* object(int id) {
+    if(objects_.find(id)==objects_.end()) {return NULL;}
+    return objects_[id];
+  }
+
+  void deleteObject(int id) {
+    delete objects_[id];
+    objects_.erase(id);
+    repopulate();
+    onUpdate();
+  }
+  
+  const std::map<int,Object*>& objects() {return objects_;}
+private:
+  int selectedId_=0;
+  std::map<int,Object*> objects_;
+  std::function<void()> onUpdate_;
+};
 
 
 class MapArea : public evp::GUI::Area{
@@ -411,10 +632,11 @@ public:
   MapArea(evp::GUI::Area* const parent,
 	  PaletteArea* paletteArea,
 	  DataLayerArea* dataLayerArea,
+	  ObjectListArea* objectListArea,
           const int nPoints,
 	  const float dx,
 	  const float dy
-	 )  : Area("mapArea",parent,0,0,dx,dy),paletteArea_(paletteArea), dataLayerArea_(dataLayerArea){
+	 )  : Area("mapArea",parent,0,0,dx,dy),paletteArea_(paletteArea), dataLayerArea_(dataLayerArea), objectListArea_(objectListArea){
      vmap = new evp::VoronoiMap<CInfo>(10000,dx,dy);
      mapInitialize();
      mapColorize();
@@ -479,6 +701,29 @@ public:
 	yoff+=14;
       }
     }
+
+    // draw objects
+    int selectedObj = objectListArea_->selectedId();
+    for(const auto& it : objectListArea_->objects()) {
+      evp::Color col = it.second->color;
+      float x = it.second->x;
+      float y = it.second->y;
+      int id = it.first;
+      const std::string& name = it.second->name;
+      float px = gx + zoom_*x;
+      float py = gy + zoom_*y;
+      if(selectedObj == id) {
+        DrawOval(px-7,py-7,14,14,target,evp::Color(0,0,0));
+        DrawOval(px-6,py-6,12,12,target,evp::Color(1,1,1));
+        DrawOval(px-5,py-5,10,10,target,col);
+        DrawText(px,py+5,std::to_string(id)+":"+name,12,target,col,0.5);
+      } else {
+        DrawOval(px-5,py-5,10,10,target,evp::Color(0,0,0));
+        DrawOval(px-4,py-4,8,8,target,evp::Color(1,1,1));
+        DrawOval(px-3,py-3,6,6,target,col);
+        DrawText(px,py+5,std::to_string(id)+":"+name,12,target,col,0.5);
+      }
+    }
     
     // draw hud:
     if(cellOver_>=0) {
@@ -535,6 +780,8 @@ public:
       evp::DrawText(xx+5,yy+100,"[E]dit (Data)",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+115,"[R]ead (Data)",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+130,"[L + up/down] Data Layer Selection",12,target,evp::Color(1,1,1));
+      
+      evp::DrawText(xx+5,yy+160,"[O + up/down] Object Selection",12,target,evp::Color(1,1,1));
     }
   }
   void zoomIs(const float z) {
@@ -678,6 +925,8 @@ public:
 	  paletteArea_->selectNext();
 	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
 	  dataLayerArea_->selectNext();
+	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O)) {
+	  objectListArea_->selectNext();
 	}
       break;}
       case sf::Keyboard::Key::Up:{
@@ -685,6 +934,8 @@ public:
 	  paletteArea_->selectPrev();
 	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
 	  dataLayerArea_->selectPrev();
+	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O)) {
+	  objectListArea_->selectPrev();
 	}
       break;}
       case sf::Keyboard::Key::M:{mode_ = 0; break;}
@@ -729,6 +980,7 @@ private:
   bool hasData_=false;
   PaletteArea* paletteArea_;
   DataLayerArea* dataLayerArea_;
+  ObjectListArea* objectListArea_;
   long cellOver_ = -1;
   std::vector<size_t> cellsSelected_;
   bool wantMapColorize_ = false;
@@ -839,9 +1091,14 @@ public:
     auto* splito = new evp::GUI::SplitArea("splitO",NULL,0,0,100,100,true);
     splito->fillParentIs(true,true,false);//fill tab
     tabs->addTab(splito,"Objects");
+    
+    // obj-list
+    objectListArea = new ObjectListArea(NULL);
+    evp::GUI::Area* scrollObjL = new evp::GUI::ScrollArea("scrollObjL",splito->sub(0),objectListArea,0,0,100,100);
+    scrollObjL->fillParentIs(true,true,false);//fill split
 
     // MapArea in center / bottom-right
-    mapArea = new MapArea(NULL,paletteArea,dataLayerArea,10000,1000,1000);
+    mapArea = new MapArea(NULL,paletteArea,dataLayerArea,objectListArea,10000,1000,1000);
     evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x+225,y+topBarOffset,dx,dy);
     mapArea->colorIs(evp::Color(1,0,0));
     scroll->fillParentIs(true,true,true);// fill with offset
@@ -858,6 +1115,7 @@ private:
   MapArea* mapArea;
   PaletteArea* paletteArea;
   DataLayerArea* dataLayerArea;
+  ObjectListArea* objectListArea;
 };
 
 static void setUpBaseWindow(evp::GUI::Area* const parent) {
@@ -879,28 +1137,6 @@ static void setUpBaseWindow(evp::GUI::Area* const parent) {
     });
  
   }
-
-  {
-    evp::GUI::Window* window = new evp::GUI::Window("window",parent,50,50,200,300,"Test");
-    float x,y,dx,dy;
-    window->childSize(dx,dy);
-    window->childOffset(x,y);
-
-    auto* sa = new evp::GUI::SplitArea("split",window,x,y,dx,dy,true);
-    sa->fillParentIs(true,true,false);// fill complete
-  }
-
-  {
-    evp::GUI::Window* window = new evp::GUI::Window("window",parent,50,50,200,300,"Test");
-    float x,y,dx,dy;
-    window->childSize(dx,dy);
-    window->childOffset(x,y);
-
-    auto* sa = new evp::GUI::SplitArea("split",window,x,y,dx,dy,false);
-    sa->fillParentIs(true,true,false);// fill complete
-  }
-
-
 }
 
 

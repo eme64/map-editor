@@ -23,6 +23,8 @@
 // - are only a point (id,x,y,name) + dict
 // - if dict.icon set will try to load a pic and display
 // - list of objects, list to edit selected object (dict)
+//
+// next steps: Objects: select/drag/move. Save/Load. Dict. Icon.
 
 //-------------------------------------------------------- Main
 int main()

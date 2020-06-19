@@ -665,11 +665,11 @@ namespace evp {
 	DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColors_[state]);
 	std::string p0 = text_.substr(0,currsorIdx);
 	std::string p1 = text_.substr(currsorIdx);
-	float tdx = DrawText(gx+1, gy+1, p0, (16)*pscale, target, textColors_[state]);
+	float tdx = DrawText(gx+1, gy+1, p0, (dy_-4)*pscale, target, textColors_[state]);
 	if(isFocus()) {
 	  DrawRect(gx+1+tdx,gy+1,1,16,target,currsorColor_);
 	}
-	DrawText(gx+1+tdx, gy+1, p1, (16)*pscale, target, textColors_[state]);
+	DrawText(gx+1+tdx, gy+1, p1, (dy_-4)*pscale, target, textColors_[state]);
       }
 
       virtual void onMouseOverStart() {if (!mouseOver_) {mouseOver_=true;}}
@@ -699,6 +699,11 @@ namespace evp {
 	    break;}
         }
       }
+      
+      virtual void onUnFocus() {
+        onTextCommit();
+      }
+
       void currsorMove(const int move) {
         currsorIdx = std::min((int)text_.size(), std::max(0, currsorIdx + move));
       }
@@ -723,20 +728,27 @@ namespace evp {
 	currsorIdx+=1;
       }
       
+      void onTextCommit() {// call when leave context to let client know
+	if(onTextCommit_) {onTextCommit_(text_);}
+      }
+
       void textIs(const std::string &s) {
         text_ = s;
+	currsorIdx = std::min((int)text_.size(), currsorIdx);
 	if(onText_) {onText_(text_);}
       }
 
       std::string text() {return text_;}
       void onTextIs(std::function<void(const std::string&)> f) {onText_=f;}
+      void onTextCommitIs(std::function<void(const std::string&)> f) {onTextCommit_=f;}
 
     protected:
       std::string text_;
       std::vector<Color> bgColors_,textColors_;
       Color currsorColor_;
       int currsorIdx;
-      std::function<void(const std::string&)> onText_;
+      std::function<void(const std::string&)> onText_; // for each diff
+      std::function<void(const std::string&)> onTextCommit_; // when leave context/onUnFocus
       bool mouseOver_ = false;
     };
  
