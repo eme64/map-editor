@@ -15,9 +15,14 @@
 // Open: -
 //
 // # New: set size and number points
-// - Data Layers: list of layers (int, float, string?) - visualization and coloring?
+// # Data Layers: list of layers - for now string only, text displayed.
 // - Objects: key-value pairs. Icons + names?
 // - Fill Area, other grid manipulation tools
+//
+// Details to Objects:
+// - are only a point (id,x,y,name) + dict
+// - if dict.icon set will try to load a pic and display
+// - list of objects, list to edit selected object (dict)
 
 //-------------------------------------------------------- Main
 int main()

@@ -834,6 +834,11 @@ public:
     evp::GUI::Area* scrolld = new evp::GUI::ScrollArea("scrolld",NULL,dataLayerArea,0,0,100,100);
     scrolld->fillParentIs(true,true,false);//fill tab
     tabs->addTab(scrolld,"Data Layers");
+    
+    // objects in tab
+    auto* splito = new evp::GUI::SplitArea("splitO",NULL,0,0,100,100,true);
+    splito->fillParentIs(true,true,false);//fill tab
+    tabs->addTab(splito,"Objects");
 
     // MapArea in center / bottom-right
     mapArea = new MapArea(NULL,paletteArea,dataLayerArea,10000,1000,1000);
@@ -855,8 +860,6 @@ private:
   DataLayerArea* dataLayerArea;
 };
 
-
-
 static void setUpBaseWindow(evp::GUI::Area* const parent) {
   // Editor:
   {
@@ -876,6 +879,28 @@ static void setUpBaseWindow(evp::GUI::Area* const parent) {
     });
  
   }
+
+  {
+    evp::GUI::Window* window = new evp::GUI::Window("window",parent,50,50,200,300,"Test");
+    float x,y,dx,dy;
+    window->childSize(dx,dy);
+    window->childOffset(x,y);
+
+    auto* sa = new evp::GUI::SplitArea("split",window,x,y,dx,dy,true);
+    sa->fillParentIs(true,true,false);// fill complete
+  }
+
+  {
+    evp::GUI::Window* window = new evp::GUI::Window("window",parent,50,50,200,300,"Test");
+    float x,y,dx,dy;
+    window->childSize(dx,dy);
+    window->childOffset(x,y);
+
+    auto* sa = new evp::GUI::SplitArea("split",window,x,y,dx,dy,false);
+    sa->fillParentIs(true,true,false);// fill complete
+  }
+
+
 }
 
 

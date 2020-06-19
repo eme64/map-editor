@@ -1213,7 +1213,101 @@ namespace evp {
       int selected_=0;
       std::vector<Color> tabColors_,textColors_;
     };
+ 
+    class SplitArea : public Area {
+    public:
+      // has 2 sub areas, split by a %percent line.
+      SplitArea(const std::string& name,Area* const parent, const float x,const float y,const float dx,const float dy, const bool horizontal)
+      : Area(name,parent,x,y,dx,dy), horizontal_(horizontal) {
+        colorIs(evp::Color(0.2,0.1,0.1));
+	sub_.resize(2);
+	sub_[0] = new Area("a0",this,0,0,10,10);
+	sub_[1] = new Area("a1",this,0,0,10,10);
+	factorIs(0.5);
+      }
+      
+      virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
+        // draw relative to parent scale (pscale)
+        float gx = x_+px*pscale;
+        float gy = y_+py*pscale;
+        DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColor_);
+        
+        if(horizontal_)  {
+	  DrawRect(gx+2, gy+factor_*dy_, dx_*pscale-4, 1, target, bgColor_*0.5);
+	} else {
+	  DrawRect(gx+factor_*dx_, gy+2, 1, dy_*pscale-4, target, bgColor_*0.5);
+	}
+        
+        for (std::list<Area*>::reverse_iterator rit=children_.rbegin(); rit!=children_.rend(); ++rit) {
+          (*rit)->draw(gx, gy,target,pscale);
+        }
+      }
+      virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
+        if (isFirstDown) {
+          setFocus();
+	  state_=1;
+	  return true;
+	}
+        return false;
+      }
+      virtual bool onMouseDown(const bool isCaptured,const float x,const float y,float &dx, float &dy,Area* const over) {
+        if (isCaptured) {
+          onDragSeparator(dx,dy);
+	}
+        return true;
+      }
+      virtual void onMouseDownEnd(const bool isCaptured, const bool isLastDown,const float x,const float y,Area* const over) {
+        if (isCaptured) {
+          state_=0;
+        }
+      }
 
+      void onDragSeparator(float &dx, float &dy) {
+        if(horizontal_) {
+	  float df = dy/dy_;
+	  float oldF = factor_;
+	  factorIs(factor_+df);
+	  dy = (factor_ - oldF)*dy_;
+	} else {
+	  float df = dx/dx_;
+	  float oldF = factor_;
+	  factorIs(factor_+df);
+	  dx = (factor_ - oldF)*dx_;
+	}
+      }
+ 
+      void factorIs(float f) {
+        f = std::min(0.9f,std::max(0.1f,f));
+	factor_ = f;
+        adjustChildren();
+      }
+      
+      void adjustChildren() {
+        if(horizontal_) {
+	  sub_[0]->sizeIs(dx_,dy_*factor_-2);
+          sub_[0]->positionIs(0,0);
+          sub_[1]->sizeIs(dx_,dy_*(1-factor_)-2);
+          sub_[1]->positionIs(0,dy_*factor_+2);
+	} else {
+	  sub_[0]->sizeIs(dx_*factor_-2,dy_);
+          sub_[0]->positionIs(0,0);
+          sub_[1]->sizeIs(dx_*(1-factor_)-2,dy_);
+          sub_[1]->positionIs(dx_*factor_+2,0);
+	}
+      }
+
+      virtual void onResize(const float dxOld, const float dyOld) {
+        adjustChildren();
+      }
+
+      Area* sub(int i) {return sub_[i];}// attach children to this: 0,1
+
+    private:
+      std::vector<Area*> sub_;
+      bool horizontal_;
+      float factor_ = 0.5; // 0..1
+      int state_ = 0; // 0: rest, 1: pressing/dragging
+    };
 
     class Socket : public Area {
     public:
