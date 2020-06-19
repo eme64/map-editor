@@ -1156,6 +1156,64 @@ namespace evp {
       const bool scrollY_;
       float scrollerWidth_=20;
     };
+     
+    class TabArea : public Area {
+    public:
+      // has sub-areas, can be filled by content.
+      TabArea(const std::string& name,Area* const parent, const float x,const float y,const float dx,const float dy,
+                const std::vector<Color> tabColors = std::vector<Color>{Color(0.2,0.2,0.2),Color(0.3,0.3,0.3)},
+                const std::vector<Color> textColors = std::vector<Color>{Color(0.8,0.8,0.8),Color(1,1,1)}
+		      )
+      : Area(name,parent,x,y,dx,dy), tabColors_(tabColors), textColors_(textColors) {}
+
+      void addTab(Area* a, const std::string &name) {
+	// Adds in an area, sets up parent/child structure.
+	auto* tab = new Area("tab_"+std::to_string(tabs_.size()),this,0,20,100,100);
+        tab->fillParentIs(true,true,true);
+	a->parentIs(tab);
+	tab->childIs(a);
+        tabs_.push_back(tab);
+	names_.push_back(name);
+	tab->onResizeParent(); // make sure it is adjusted
+      }
+      virtual void draw(const float px,const float py, sf::RenderTarget &target, const float pscale) {
+        // draw relative to parent scale (pscale)
+        float gx = x_+px*pscale;
+        float gy = y_+py*pscale;
+        DrawRect(gx, gy, dx_*pscale, dy_*pscale, target, bgColor_);
+        
+	float ddx = dx_*pscale / tabs_.size();
+	for(int i=0;i<tabs_.size();i++) {
+          int state = (selected_==i);
+	  DrawRect(gx+i*ddx, gy, ddx, 20*pscale, target, tabColors_[state]);
+	  DrawRect(gx+i*ddx+1, gy+1, ddx-2, 20*pscale-1, target, tabColors_[state]*0.6);
+	  DrawText(gx+i*ddx+1, gy+5, names_[i], (12)*pscale, target, textColors_[state]);
+	}
+        
+        for (std::list<Area*>::reverse_iterator rit=children_.rbegin(); rit!=children_.rend(); ++rit) {
+          (*rit)->draw(gx, gy,target,pscale);
+        }
+      }
+      virtual bool onMouseDownStart(const bool isFirstDown,const float x,const float y) {
+        if (isFirstDown) {
+          setFocus();
+	  float px = x-globalX();
+	  float ddx = dx_ / tabs_.size();
+          int id = floor(px/ddx);
+	  selected_ = id;
+	  tabs_[id]->setFocus();
+	  return true;
+	}
+        return false;
+      }
+ 
+    private:
+      std::vector<Area*> tabs_;
+      std::vector<std::string> names_;
+      int selected_=0;
+      std::vector<Color> tabColors_,textColors_;
+    };
+
 
     class Socket : public Area {
     public:

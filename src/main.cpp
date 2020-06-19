@@ -17,6 +17,7 @@
 // # New: set size and number points
 // - Data Layers: list of layers (int, float, string?) - visualization and coloring?
 // - Objects: key-value pairs. Icons + names?
+// - Fill Area, other grid manipulation tools
 
 //-------------------------------------------------------- Main
 int main()

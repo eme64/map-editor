@@ -568,6 +568,27 @@ static void setUpBaseWindow(evp::GUI::Area* const parent) {
     });
  
   }
+
+  {// Testing:
+    evp::GUI::Window* window = new evp::GUI::Window("window",parent,10,100,300,400,"Test");
+    float x,y,dx,dy;
+    window->childSize(dx,dy);
+    window->childOffset(x,y);
+
+    auto* t = new evp::GUI::TabArea("tabArea",window,x,y,dx,dy);
+    t->fillParentIs(true,true,true);
+
+    auto* a1 = new evp::GUI::Area("a1",NULL,0,0,100,100);
+    a1->fillParentIs(true,true,false);
+    t->addTab(a1, "a1");
+    a1->colorIs(evp::Color(0.5,0.5,0));
+    
+    auto* a2 = new evp::GUI::Area("a2",NULL,0,0,100,100);
+    a2->fillParentIs(true,true,false);
+    t->addTab(a2, "a2");
+    a2->colorIs(evp::Color(0.5,0,0));
+  }
+
 }
 
 
