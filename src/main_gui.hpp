@@ -97,7 +97,6 @@ public:
     sizeIs(200,ypos);
   }
   void addNewItem() {
-    std::cout << "addNewItem\n";
     int idMax = 0;
     for(auto it : pname) {
       idMax = std::max(idMax, it.first);
@@ -304,7 +303,6 @@ public:
     sizeIs(200,ypos);
   }
   void addNewItem() {
-    std::cout << "addNewItem\n";
     int idMax = 0;
     for(auto it : lname) {
       idMax = std::max(idMax, it.first);
@@ -325,14 +323,6 @@ public:
   }
   void onUpdateIs(std::function<void()> f) {onUpdate_=f;}
   
-  ///  evp::Color paletteColor(int id) {
-  ///    if(pcolor.find(id)!=pcolor.end()) {
-  ///      return pcolor[id];
-  ///    } else {
-  ///      return evp::Color(1,1,1,(float)rand()/(RAND_MAX)*0.2);
-  ///    }
-  ///  }
-
   long selectedId() {
     if(lcolor.find(selectedId_)!=lcolor.end()) {
       return selectedId_;
@@ -394,6 +384,12 @@ public:
   //  pcolor[id] = col;
   //  onUpdate();
   //}
+  
+  const std::map<int,std::string>& names() {return lname;}
+  const std::map<int,evp::Color>& colors() {return lcolor;}
+  const std::map<int,bool>& isShow() {return lshow;}
+  const std::map<int,bool>& isEdit() {return ledit;}
+  std::map<int,std::string>& values() {return lvalue;}
 
 private:
   int selectedId_=0;
@@ -411,16 +407,21 @@ class MapArea : public evp::GUI::Area{
 public:
   MapArea(evp::GUI::Area* const parent,
 	  PaletteArea* paletteArea,
+	  DataLayerArea* dataLayerArea,
           const int nPoints,
 	  const float dx,
 	  const float dy
-	 )  : Area("mapArea",parent,0,0,dx,dy),paletteArea_(paletteArea) {
+	 )  : Area("mapArea",parent,0,0,dx,dy),paletteArea_(paletteArea), dataLayerArea_(dataLayerArea){
      vmap = new evp::VoronoiMap<CInfo>(10000,dx,dy);
      mapInitialize();
      mapColorize();
+     updateLayers();
 
      paletteArea_->onUpdateIs([this](){
        mapColorize();
+     });
+     dataLayerArea_->onUpdateIs([this](){
+       updateLayers();
      });
   }
   void load(const std::string& fileName);
@@ -459,6 +460,23 @@ public:
     }
     vmap->draw(gx,gy,zoom_,target);
     
+    // draw data layers.
+    float yoff = 0;
+    for(auto &it : dataLayers_) {
+      bool show = dataLayerArea_->isShow().at(it.first);
+      if(show) {
+	evp::Color col = dataLayerArea_->colors().at(it.first);
+        for(size_t i=0; i<vmap->num_cells; i++) {
+	  const auto& cell = vmap->cells[i];
+	  if(it.second[i].size()>0) {
+	    DrawText(gx+zoom_*cell.pos.x,gy+zoom_*cell.pos.y+yoff,it.second[i],12,target,col,0.5);
+	  }
+	}
+	yoff+=14;
+      }
+    }
+    
+    // draw hud:
     if(cellOver_>=0) {
       evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cellOver_];
       for(int i=0;i<cell.corners.size();i++) {
@@ -474,7 +492,7 @@ public:
 	   );
       }
     }
-    if(mode_==1) {
+    if(mode_==1 || mode_==3) {
       // draw
       for(int cc : cellsSelected_) {
         evp::VoronoiMapCell<CInfo> &cell = vmap->cells[cc];
@@ -496,7 +514,7 @@ public:
     if(!showHUD_ && parent() && parent()->parent()) {
       float xx = parent()->parent()->globalX();
       float yy = parent()->parent()->globalY();
-      evp::DrawRect(xx+2,yy+2,40,35,target,evp::Color(0,0,0,0.7));
+      evp::DrawRect(xx+2,yy+2,100,35,target,evp::Color(0,0,0,0.7));
       evp::DrawText(xx+5,yy+5,"[H]",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+20,modeText[mode_],12,target,evp::Color(1,1,1));
     } else {
@@ -506,12 +524,13 @@ public:
       evp::DrawText(xx+5,yy+5,"[H] hide HUD",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+20,modeText[mode_],12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+35,"[M]ove",12,target,evp::Color(1,1,1));
-      evp::DrawText(xx+5,yy+50,"[D]raw - [Alt + scrol] pen-size",12,target,evp::Color(1,1,1));
-      evp::DrawText(xx+5,yy+65,"[S]elect",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+50,"[D]raw (Palette) - [Alt + scrol] pen-size",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+65,"[S]elect (Palette)",12,target,evp::Color(1,1,1));
       
-      evp::DrawText(xx+5,yy+100,"[P + up/down] Palette Selection",12,target,evp::Color(1,1,1));
-      
-
+      evp::DrawText(xx+5,yy+80,"[P + up/down] Palette Selection",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+100,"[E]dit (Data)",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+115,"[R]ead (Data)",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+130,"[L + up/down] Data Layer Selection",12,target,evp::Color(1,1,1));
     }
   }
   void zoomIs(const float z) {
@@ -559,7 +578,7 @@ public:
     size_t cid = vmap->getCell(vx,vy,0);
     cellOver_ = cid;
 
-    if(mode_==1) {// in Draw mode:
+    if(mode_==1 || mode_==3) {// in Draw or Edit mode:
       updateCellSelection(vx,vy,cid);
     }
   }
@@ -618,6 +637,30 @@ public:
 	  paletteArea_->select(cell.info.paletteId);
 	}
       break;}
+      case 3: {
+        // Edit
+        for(auto &it : dataLayers_) {
+          bool edit = dataLayerArea_->isEdit().at(it.first);
+          if(edit) {
+            const auto& val = dataLayerArea_->values()[it.first];
+	    if(cellOver_>=0) {
+              it.second[cellOver_] = val;
+	    } 
+            for(int cc : cellsSelected_) {
+              it.second[cc] = val;
+	    } 
+          }
+        }
+      break;}
+      case 4: {
+        // Edit
+        if(cellOver_>=0) {
+          for(auto &it : dataLayers_) {
+            dataLayerArea_->values()[it.first] = it.second[cellOver_];
+	  }
+	  dataLayerArea_->repopulate();
+	}
+      break;}
     }
   }
 
@@ -629,16 +672,22 @@ public:
       case sf::Keyboard::Key::Down:{
         if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
 	  paletteArea_->selectNext();
+	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
+	  dataLayerArea_->selectNext();
 	}
       break;}
       case sf::Keyboard::Key::Up:{
         if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P)) {
 	  paletteArea_->selectPrev();
+	} else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L)) {
+	  dataLayerArea_->selectPrev();
 	}
       break;}
       case sf::Keyboard::Key::M:{mode_ = 0; break;}
       case sf::Keyboard::Key::D:{mode_ = 1; break;}
       case sf::Keyboard::Key::S:{mode_ = 2; break;}
+      case sf::Keyboard::Key::E:{mode_ = 3; break;}
+      case sf::Keyboard::Key::R:{mode_ = 4; break;}
     }
   }
   
@@ -647,12 +696,31 @@ public:
     std::cout << drawRadius_ << "\n";
   }
 
+  void updateLayers() {
+    // makes sure the correct layers exist - from dataLayerArea info.
+    // delete unused ones:
+    const auto& names = dataLayerArea_->names();
+    for(auto it : dataLayers_) {
+      if(names.find(it.first)==names.end()) {
+        // not found -> delete
+	dataLayers_.erase(it.first);
+      }
+    }
+    // add missing ones:
+    for(auto it : names) {
+      if(dataLayers_.find(it.first)==dataLayers_.end()) {
+        // missing -> add
+	dataLayers_[it.first] = std::vector<std::string>(vmap->num_cells);
+      }
+    }
+  }
 private:
   evp::VoronoiMap<CInfo>* vmap;
   float zoom_=1.0;
   float drawRadius_=100.0;
   bool hasData_=false;
   PaletteArea* paletteArea_;
+  DataLayerArea* dataLayerArea_;
   long cellOver_ = -1;
   std::vector<size_t> cellsSelected_;
   bool wantMapColorize_ = false;
@@ -662,9 +730,14 @@ private:
   int mode_ = 0;
   std::vector<std::string> modeText = {
     "Move",   // 0
-    "Draw",   // 1
-    "Select",   // 1
+    "Draw (Palette)",     // 1
+    "Select (Palette)",   // 2
+    "Edit (Data)", // 3
+    "Read (Data)", // 4
   };
+
+  // data layer:
+  std::map<int,std::vector<std::string>> dataLayers_;
 };
 
 
@@ -714,7 +787,6 @@ public:
     
     evp::GUI::Button* genb = new evp::GUI::Button("buttonGenerate",window,x+offX4,y+20,60,15,"Generate");
     genb->onClickIs([this, sizeX, sizeY, sizeP]() {
-      std::cout << "Generate!\n";
       // validate input
       int sx = std::atof(sizeX->text().c_str());
       int sy = std::atof(sizeY->text().c_str());
@@ -732,6 +804,7 @@ public:
       sizeP->textIs(std::to_string(sp));
 
       if(fail) {return;}
+      std::cout << "Generate!\n";
       
       mapArea->generate(sp,sx,sy);
     });
@@ -755,7 +828,7 @@ public:
     tabs->addTab(scrolld,"Data Layers");
 
     // MapArea in center / bottom-right
-    mapArea = new MapArea(NULL,paletteArea,10000,1000,1000);
+    mapArea = new MapArea(NULL,paletteArea,dataLayerArea,10000,1000,1000);
     evp::GUI::Area* scroll = new evp::GUI::ScrollArea("scroll",window,mapArea,x+225,y+topBarOffset,dx,dy);
     mapArea->colorIs(evp::Color(1,0,0));
     scroll->fillParentIs(true,true,true);// fill with offset
