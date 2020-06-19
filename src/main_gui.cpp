@@ -7,6 +7,7 @@ std::vector<std::string> split(const std::string &s, const char separator =',') 
   while (getline(f, tmp, separator)) {
       res.push_back(tmp);
   }
+  if(s.size()>0 && s[s.size()-1]==separator) {res.push_back("");}
   return res;
 }
 
@@ -24,11 +25,12 @@ void MapArea::load(const std::string& fileName) {
   std::string str = mystream.str();
   
   std::vector<std::string> lines = split(str, '\n');
-  int state = 0; // 1: palette, 2: map, 3: cells
+  int state = 0; // 1: palette, 2: map, 3: cells, 4: datalayer
   int line = 0;
   int lastId = -1;
   while(line < lines.size()) {
     std::string &l = lines[line];
+    if(l.size()==0){line++;continue;}
     switch(l[0]) {
       case '#': {
         // comment - ignore
@@ -44,6 +46,12 @@ void MapArea::load(const std::string& fileName) {
 	  state = 2;
 	} else if(l.compare("@cells")==0) {
 	  state = 3;
+          updateLayers();
+          dataLayerArea_->repopulate();
+	} else if(l.compare("@datalayer")==0) {
+	  state = 4;
+	  dataLayerArea_->clear();
+	  dataLayers_.clear();
 	} else {
           std::cout << "WARNING: did not know " << l << "\n";
 	  return;
@@ -90,6 +98,12 @@ void MapArea::load(const std::string& fileName) {
 	      for(auto &n : parts) {
 	        c.neighbors.push_back(std::atoi(n.c_str()));
 	      }
+	    } else if(l[0]=='&') {
+	      std::vector<std::string> parts = split(l.substr(1),',');
+              int lid = std::atoi(parts[0].c_str());
+	      std::string value = parts[1];
+	      auto &c = vmap->cells[lastId];
+              dataLayers_[lid][lastId] = value;
 	    } else {
 	      // init info:
 	      std::vector<std::string> parts = split(l,',');
@@ -110,8 +124,22 @@ void MapArea::load(const std::string& fileName) {
 	      c.pos.x = xx;
 	      c.pos.y = yy;
 	    }
-	    
 	  break;}
+	  case 4: {
+	    // datalayer
+	    std::vector<std::string> parts = split(l,',');
+            int id = std::atoi(parts[0].c_str());
+	    std::string name = parts[1];
+	    float r = std::stof(parts[2]);
+	    float g = std::stof(parts[3]);
+	    float b = std::stof(parts[4]);
+	    float a = std::stof(parts[5]);
+            int isShow = std::atoi(parts[6].c_str());
+            int isEdit = std::atoi(parts[7].c_str());
+            std::string value = parts[8];
+	    dataLayerArea_->addItem(id, name, evp::Color(r,g,b,a),isShow,isEdit,value);
+	  break;}
+	
 	  default: {
 	    std::cout << "Default state: " << l << "\n";
 	  break;}
@@ -134,6 +162,19 @@ void PaletteArea::save(std::ofstream &myfile) {
   }
 }
 
+void DataLayerArea::save(std::ofstream &myfile) {
+  myfile << "@datalayer\n";
+  myfile << "#id,name,r,g,b,a,isShow,isEdit,defaultValue\n";
+  for(auto it : lname) {
+    myfile << it.first <<","<<it.second<<",";
+    evp::Color c = lcolor[it.first];
+    myfile << c.r << "," << c.g << "," << c.b << "," << c.a << ",";
+    myfile << (int)lshow[it.first] << ",";
+    myfile << (int)ledit[it.first] << ",";
+    myfile << lvalue[it.first] << "\n";
+  }
+}
+
 void MapArea::save(const std::string& fileName) {
   std::cout << "**SAVE**"<< fileName <<"\n";
   
@@ -149,8 +190,13 @@ void MapArea::save(const std::string& fileName) {
   myfile << vmap->spread_x << ",";
   myfile << vmap->spread_y << "\n";
   
+  dataLayerArea_->save(myfile);
+  
   myfile << "@cells\n";
   myfile << "#id,paletteId,n_corners,n_neighbors,posx,posy\n";
+  myfile << "# *cornerx,cornery\n";
+  myfile << "# -neighborlist\n";
+  myfile << "# &datalayerId,value\n";
 
   for(size_t i = 0; i<vmap->num_cells; i++) {
     auto &c = vmap->cells[i];
@@ -168,6 +214,12 @@ void MapArea::save(const std::string& fileName) {
       myfile << c.neighbors[k];
     }
     myfile << "\n";
+
+    for(auto &it : dataLayers_) {
+      if(it.second[i].size() > 0) {
+        myfile << "&" << it.first << "," << it.second[i] << "\n";
+      }
+    }
   }
 
   // ------------------------- close

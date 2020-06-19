@@ -376,14 +376,17 @@ public:
     lshow.clear();
     ledit.clear();
     selectedId_=0;
-    onUpdate();
+    //onUpdate(); // hmm this was buggy
   }
 
-  //void addItem(const int id, const std::string &name, const evp::Color col) {
-  //  pname[id] = name;
-  //  pcolor[id] = col;
-  //  onUpdate();
-  //}
+  void addItem(const int id, const std::string &name, const evp::Color col, const bool isShow, const bool isEdit, const std::string &value) {
+    lname[id] = name;
+    lcolor[id] = col;
+    lshow[id] = isShow;
+    ledit[id] = isEdit;
+    lvalue[id] = value;
+    onUpdate();
+  }
   
   const std::map<int,std::string>& names() {return lname;}
   const std::map<int,evp::Color>& colors() {return lcolor;}
@@ -431,6 +434,7 @@ public:
     vmap->generate(n_cells, s_x, s_y);
     mapInitialize();
     mapColorize();
+    resetLayers();
   }
 
   void mapInitialize() {
@@ -696,6 +700,10 @@ public:
     std::cout << drawRadius_ << "\n";
   }
 
+  void resetLayers() {
+    dataLayers_.clear();
+    updateLayers();
+  }
   void updateLayers() {
     // makes sure the correct layers exist - from dataLayerArea info.
     // delete unused ones:
