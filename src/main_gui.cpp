@@ -52,6 +52,9 @@ void MapArea::load(const std::string& fileName) {
 	  state = 4;
 	  dataLayerArea_->clear();
 	  dataLayers_.clear();
+	} else if(l.compare("@objects")==0) {
+	  state = 5;
+	  resetObjects();
 	} else {
           std::cout << "WARNING: did not know " << l << "\n";
 	  return;
@@ -139,7 +142,19 @@ void MapArea::load(const std::string& fileName) {
             std::string value = parts[8];
 	    dataLayerArea_->addItem(id, name, evp::Color(r,g,b,a),isShow,isEdit,value);
 	  break;}
-	
+	  case 5: {
+	    // objects
+	    std::vector<std::string> parts = split(l,',');
+            int id = std::atoi(parts[0].c_str());
+	    std::string name = parts[1];
+	    float r = std::stof(parts[2]);
+	    float g = std::stof(parts[3]);
+	    float b = std::stof(parts[4]);
+	    float a = std::stof(parts[5]);
+	    float x = std::stof(parts[6]);
+	    float y = std::stof(parts[7]);
+	    objectListArea_->addItem(id,name,evp::Color(r,g,b,a),x,y);
+	  break;}
 	  default: {
 	    std::cout << "Default state: " << l << "\n";
 	  break;}
@@ -172,6 +187,19 @@ void DataLayerArea::save(std::ofstream &myfile) {
     myfile << (int)lshow[it.first] << ",";
     myfile << (int)ledit[it.first] << ",";
     myfile << lvalue[it.first] << "\n";
+  }
+}
+
+void ObjectListArea::save(std::ofstream &myfile) {
+  myfile << "@objects\n";
+  myfile << "#id,namer,g,b,a,x,y\n";
+  for(auto it : objects_) {
+    Object* o = it.second;
+    myfile << it.first <<","<<o->name<<",";
+    evp::Color c = o->color;
+    myfile << c.r << "," << c.g << "," << c.b << "," << c.a << ",";
+    myfile << o->x << ",";
+    myfile << o->y << "\n";
   }
 }
 
@@ -221,6 +249,8 @@ void MapArea::save(const std::string& fileName) {
       }
     }
   }
+  
+  objectListArea_->save(myfile);
 
   // ------------------------- close
   myfile.close();

@@ -574,23 +574,21 @@ public:
     }
   }
   
-  ///  void clear() {
-  ///    lname.clear();
-  ///    lcolor.clear();
-  ///    lshow.clear();
-  ///    ledit.clear();
-  ///    selectedId_=0;
-  ///    //onUpdate(); // hmm this was buggy
-  ///  }
+  void clear() {
+    for(auto it : objects_) {
+      delete it.second;
+    }
+    objects_.clear();
+    selectedId_=0;
+    onUpdate();
+  }
 
-  ///  void addItem(const int id, const std::string &name, const evp::Color col, const bool isShow, const bool isEdit, const std::string &value) {
-  ///    lname[id] = name;
-  ///    lcolor[id] = col;
-  ///    lshow[id] = isShow;
-  ///    ledit[id] = isEdit;
-  ///    lvalue[id] = value;
-  ///    onUpdate();
-  ///  }
+  void addItem(const int id, const std::string &name, const evp::Color col, const float x, const float y) {
+    Object* o = new Object(id, name, x,y, col);
+    objects_[id] = o;
+    repopulate();
+    onUpdate();
+  }
  
   void newObject() {
     int idMax = 0;
@@ -657,6 +655,7 @@ public:
     mapInitialize();
     mapColorize();
     resetLayers();
+    resetObjects();
   }
 
   void mapInitialize() {
@@ -1000,6 +999,10 @@ public:
   void resetLayers() {
     dataLayers_.clear();
     updateLayers();
+  }
+  void resetObjects() {
+    objectListArea_->clear();
+    objectListArea_->repopulate();
   }
   void updateLayers() {
     // makes sure the correct layers exist - from dataLayerArea info.
