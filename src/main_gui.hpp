@@ -781,7 +781,9 @@ public:
       evp::DrawText(xx+5,yy+115,"[R]ead (Data)",12,target,evp::Color(1,1,1));
       evp::DrawText(xx+5,yy+130,"[L + up/down] Data Layer Selection",12,target,evp::Color(1,1,1));
       
-      evp::DrawText(xx+5,yy+160,"[O + up/down] Object Selection",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+150,"[F]ind (Object)",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+165,"[T]ranslate (Object)",12,target,evp::Color(1,1,1));
+      evp::DrawText(xx+5,yy+180,"[O + up/down] Object Selection",12,target,evp::Color(1,1,1));
     }
   }
   void zoomIs(const float z) {
@@ -846,18 +848,23 @@ public:
     if (isFirstDown) {
       setFocus();
       float dx=0,dy=0;
-      doAction(dx,dy);
+      doAction(dx,dy, x,y, true);
       return true; // capture
     }
     return false;
   }
 
   virtual bool onMouseDown(const bool isCaptured,const float x,const float y,float &dx, float &dy,Area* const over) {
-    if(isCaptured) {doAction(dx,dy);}
+    if(isCaptured) {doAction(dx,dy,x,y,false);}
     return true;
   }
+
+  virtual void onMouseDownEnd(const bool isCaptured, const bool isLastDown,const float x,const float y,Area* const over) {
+    endAction();
+  }
+ 
   
-  void doAction(float &dx, float &dy) {
+  void doAction(float &dx, float &dy, float px, float py, bool isFirst) {
     switch(mode_) {
       case 0: {
         // Move
@@ -912,8 +919,45 @@ public:
 	  dataLayerArea_->repopulate();
 	}
       break;}
+      case 5: {
+        // Translate
+	if(dx!=0 || dy!=0) {
+          float ddx = dx/zoom_;
+          float ddy = dy/zoom_;
+          int id = objectListArea_->selectedId();
+	  if(id>=0) {
+	    auto* obj = objectListArea_->object(id);
+	    obj->x += ddx;
+	    obj->y += ddy;
+	    objectListArea_->repopulate();
+	    objectListArea_->onUpdate();
+	  }
+	}
+      break;}
+      case 6: {
+        // Find
+	if(isFirst) {
+	  float gx = globalX();
+          float gy = globalY();
+	  auto& objs = objectListArea_->objects();
+	  for(auto &it : objs) {
+            float x = gx + zoom_*it.second->x;
+            float y = gy + zoom_*it.second->y;
+            int id = it.first;
+	    float ddx = x-px;
+	    float ddy = y-py;
+	    float d2 = ddx*ddx + ddy*ddy;
+	    if(d2<=100) {
+	      objectListArea_->select(id);
+	      break;
+	    }
+	  }
+	}
+      break;}
     }
   }
+
+  void endAction() {}
 
   virtual void onUnFocus() {mode_=0;} // make sure mode is reset
 
@@ -943,6 +987,8 @@ public:
       case sf::Keyboard::Key::S:{mode_ = 2; break;}
       case sf::Keyboard::Key::E:{mode_ = 3; break;}
       case sf::Keyboard::Key::R:{mode_ = 4; break;}
+      case sf::Keyboard::Key::T:{mode_ = 5; break;}
+      case sf::Keyboard::Key::F:{mode_ = 6; break;}
     }
   }
   
@@ -994,6 +1040,8 @@ private:
     "Select (Palette)",   // 2
     "Edit (Data)", // 3
     "Read (Data)", // 4
+    "Translate (Object)", // 5
+    "Find (Object)",      // 6
   };
 
   // data layer:
