@@ -394,7 +394,7 @@ namespace evp {
       }
       void unFocus() {
         //std::cout << "unFocus " << fullName() << std::endl;
-	if(isFocus_) {onUnFocus();}
+	if(isFocus_ && !isDeleted_) {onUnFocus();}
         isFocus_=false;
         isFocusPath_=false;
         if (parent_) {parent_->unFocus();}
