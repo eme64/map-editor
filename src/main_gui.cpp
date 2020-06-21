@@ -27,7 +27,7 @@ void MapArea::load(const std::string& fileName) {
   std::vector<std::string> lines = split(str, '\n');
   int state = 0; // 1: palette, 2: map, 3: cells, 4: datalayer
   int line = 0;
-  int lastId = -1;
+  int lastId = -1; // for cells and objects
   while(line < lines.size()) {
     std::string &l = lines[line];
     if(l.size()==0){line++;continue;}
@@ -144,16 +144,25 @@ void MapArea::load(const std::string& fileName) {
 	  break;}
 	  case 5: {
 	    // objects
-	    std::vector<std::string> parts = split(l,',');
-            int id = std::atoi(parts[0].c_str());
-	    std::string name = parts[1];
-	    float r = std::stof(parts[2]);
-	    float g = std::stof(parts[3]);
-	    float b = std::stof(parts[4]);
-	    float a = std::stof(parts[5]);
-	    float x = std::stof(parts[6]);
-	    float y = std::stof(parts[7]);
-	    objectListArea_->addItem(id,name,evp::Color(r,g,b,a),x,y);
+            if(l[0]=='-') {
+	      std::vector<std::string> parts = split(l.substr(1),',');
+	      Object* o = objectListArea_->object(lastId);
+	      std::string key = parts[0];
+	      std::string val = parts[1];
+	      o->dict[key] = val;
+	    } else {
+	      std::vector<std::string> parts = split(l,',');
+              int id = std::atoi(parts[0].c_str());
+	      lastId = id;
+	      std::string name = parts[1];
+	      float r = std::stof(parts[2]);
+	      float g = std::stof(parts[3]);
+	      float b = std::stof(parts[4]);
+	      float a = std::stof(parts[5]);
+	      float x = std::stof(parts[6]);
+	      float y = std::stof(parts[7]);
+	      objectListArea_->addItem(id,name,evp::Color(r,g,b,a),x,y);
+	    }
 	  break;}
 	  default: {
 	    std::cout << "Default state: " << l << "\n";
@@ -193,6 +202,7 @@ void DataLayerArea::save(std::ofstream &myfile) {
 void ObjectListArea::save(std::ofstream &myfile) {
   myfile << "@objects\n";
   myfile << "#id,namer,g,b,a,x,y\n";
+  myfile << "#-key,value\n";
   for(auto it : objects_) {
     Object* o = it.second;
     myfile << it.first <<","<<o->name<<",";
@@ -200,6 +210,10 @@ void ObjectListArea::save(std::ofstream &myfile) {
     myfile << c.r << "," << c.g << "," << c.b << "," << c.a << ",";
     myfile << o->x << ",";
     myfile << o->y << "\n";
+
+    for(std::pair<std::string,std::string> it : o->dict) {
+      myfile << "-" << it.first << "," << it.second << "\n";
+    }
   }
 }
 

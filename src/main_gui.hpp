@@ -673,7 +673,6 @@ public:
 	  }
 	  if(o->dict.find(s)!=o->dict.end()) {
 	    tk->textIs(key);
-	    //onUpdate();
 	  }else {
 	    o->dict[s] = o->dict[key];
 	    o->dict.erase(key);
