@@ -2,6 +2,9 @@ var squareRotation = 0.0;
 
 var data = {};
 
+var controlX = 0.5;
+var controlY = 0.5;
+
 dataLoad();
 //main();
 
@@ -15,7 +18,19 @@ function main() {
   //
   const canvas = document.querySelector('#glcanvas');
   const gl = canvas.getContext('webgl');
-
+  
+  // add event listeners for mouse/touch event:
+  canvas.addEventListener("touchmove", function(event) {
+     var touches = event.changedTouches;
+     for(var i=0; i<touches.length; i++) {
+        var id = touches[i].identifier;
+        controlMove(id, touches[i].pageX/canvas.width,touches[i].pageY/canvas.height);
+     }
+  });
+  canvas.addEventListener("mousemove", function(event) {
+     controlMove(-1, event.pageX/canvas.width,event.pageY/canvas.height);
+  });
+  
   // If we don't have a GL context, give up now
 
   if (!gl) {
@@ -55,9 +70,13 @@ function main() {
     varying lowp float vSparkle;
     uniform highp float iOffset;
     varying highp float vSparkleX;
+    uniform highp vec2 uControl;
    
     void main(void) {
-      highp float f = mod(vPos.x+vPos.y+iOffset,1.0)*0.3;
+      highp float dx = uControl.x-vPos.x-0.5;
+      highp float dy = -uControl.y*2.0-vPos.y+0.5;
+      highp float e = max(-0.05 / (dx*dx + dy*dy),-0.5);
+      highp float f = mod(e + vPos.x+vPos.y+0.2*iOffset,1.0)*0.3;
       highp float g = mod(2.0*vPos.x-vPos.y+2.0*iOffset,1.0)*0.05;
       gl_FragColor = mix(
 	      //mix(
@@ -97,6 +116,7 @@ function main() {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
       iOffset: gl.getUniformLocation(shaderProgram, 'iOffset'),
+      control: gl.getUniformLocation(shaderProgram, 'uControl'),
     },
   };
 
@@ -117,6 +137,12 @@ function main() {
     requestAnimationFrame(render);
   }
   requestAnimationFrame(render);
+}
+
+function controlMove(id, x, y) {
+  //console.log(id,x,y);
+  controlX = x;
+  controlY = y;
 }
 
 function dataLoad() {
@@ -501,6 +527,12 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
   gl.uniform1f(
       programInfo.uniformLocations.iOffset,
       squareRotation);
+  let ctrl = vec2.create();
+  ctrl[0] = controlX;
+  ctrl[1] = controlY;
+  gl.uniform2fv(
+      programInfo.uniformLocations.control,
+      ctrl);
  
   {
     const offset = 0;
