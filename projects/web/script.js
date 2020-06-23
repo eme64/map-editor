@@ -57,22 +57,22 @@ function main() {
     varying highp float vSparkleX;
    
     void main(void) {
-      highp float f = mod(vPos.x+vPos.y+iOffset,1.0)*1.0;
-      highp float g = mod(vPos.x-vPos.y+2.0*iOffset,1.0)*0.05;
+      highp float f = mod(vPos.x+vPos.y+iOffset,1.0)*0.3;
+      highp float g = mod(2.0*vPos.x-vPos.y+2.0*iOffset,1.0)*0.05;
       gl_FragColor = mix(
-	      mix(
-	        vColor,
+	      //mix(
+	      //  vColor,
 	        vec4(
 	        mod(2.0*f+vColor[0],1.0),
 	        mod(3.0*f+vColor[1],1.0),
 	        mod(5.0*f+vColor[2],1.0),
-	        1),
-	        vSparkle
-	      ),
+	          1),
+	      //  vSparkle
+	      //),
 	      vec4(
 	      mod(13.0*g+vColor[0],1.0),
 	      mod(17.0*g+vColor[1],1.0),
-	      mod(19.0*g+vColor[2],1.0),
+	      mod(23.0*g+vColor[2],1.0),
 	      1),
 	      vSparkleX);
     }
@@ -404,10 +404,12 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
   const rzoom = 1000;
   const xf = aspect*rzoom;
+  const xf0 = 0.5*(1-aspect)*rzoom;
+  const xf1 = xf0+xf;
   const yf = rzoom;
   const projectionMatrix = mat4.create();
   mat4.ortho(projectionMatrix,
-             0, xf, yf, 0, 0.1, 100);
+             xf0, xf1, yf, 0, 0.1, 100);
 
   // Set the drawing position to the "identity" point, which is
   // the center of the scene.
