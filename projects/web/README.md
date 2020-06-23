@@ -1,1 +1,15 @@
-<meta http-equiv="Refresh" content="2; url=index.html">
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Wishes!</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+
+  <body>
+    <canvas id="glcanvas" width="100vw" height="100vh"></canvas>
+  </body>
+
+  <script src="gl-matrix.js"></script>
+  <script src="script.js"></script>
+</html>
