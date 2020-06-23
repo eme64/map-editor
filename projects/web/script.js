@@ -28,17 +28,22 @@ function main() {
   const vsSource = `
     attribute vec4 aVertexPosition;
     attribute vec4 aVertexColor;
+    attribute float aSparkle;
 
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
     varying lowp vec4 vColor;
     varying lowp vec4 vPos;
+    varying highp float vSparkle;
+    varying highp float vSparkleX;
 
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
       vColor = aVertexColor;
       vPos = gl_Position;
+      vSparkleX = step(2.0,aSparkle);
+      vSparkle = aSparkle*1.0*(1.0-vSparkleX);
     }
   `;
 
@@ -47,16 +52,29 @@ function main() {
   const fsSource = `
     varying lowp vec4 vColor;
     varying lowp vec4 vPos;
-    uniform lowp float iOffset;
+    varying lowp float vSparkle;
+    uniform highp float iOffset;
+    varying highp float vSparkleX;
    
     void main(void) {
-      lowp float f = mod(vPos.x+vPos.y+iOffset,1.0)*0.3;
-      //gl_FragColor = mix(vColor,vec4(1,0,0,1),f);
-      gl_FragColor = vec4(
-	      mod(2.0*f+vColor[0],1.0),
-	      mod(3.0*f+vColor[1],1.0),
-	      mod(5.0*f+vColor[2],1.0),
-	      1);
+      highp float f = mod(vPos.x+vPos.y+iOffset,1.0)*1.0;
+      highp float g = mod(vPos.x-vPos.y+2.0*iOffset,1.0)*0.05;
+      gl_FragColor = mix(
+	      mix(
+	        vColor,
+	        vec4(
+	        mod(2.0*f+vColor[0],1.0),
+	        mod(3.0*f+vColor[1],1.0),
+	        mod(5.0*f+vColor[2],1.0),
+	        1),
+	        vSparkle
+	      ),
+	      vec4(
+	      mod(13.0*g+vColor[0],1.0),
+	      mod(17.0*g+vColor[1],1.0),
+	      mod(19.0*g+vColor[2],1.0),
+	      1),
+	      vSparkleX);
     }
   `;
 
@@ -73,6 +91,7 @@ function main() {
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+      sparkle: gl.getAttribLocation(shaderProgram, 'aSparkle'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -229,10 +248,19 @@ function dataLoadParse(txt) {
 function dataCellBuffers(gl) {
   var positions = [];
   var colors = [];
+  var sparkle = [];
+  var lid = -1;
+  for(var i in data.layer) {
+    const name = data.layer[i].name;
+    if(name === "sparkle") {lid = i;}
+    console.log(name,i);
+  }
   for(var cid in data.cells) {
     const cell = data.cells[cid];
     const col = data.palette[cell.paletteId].color;
     const r0 = 1-Math.random()*0.2;
+    var spark = parseFloat(cell.layer[lid]);
+    if(!spark) {spark = 0.0;}
     for(var c=2;c<cell.corners.length;c++) {
       positions.push(cell.corners[0][0]);
       positions.push(cell.corners[0][1]);
@@ -243,8 +271,12 @@ function dataCellBuffers(gl) {
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
+      sparkle.push(spark);
+      sparkle.push(spark);
+      sparkle.push(spark);
     }
   }
+  console.log(sparkle)
 
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -254,9 +286,15 @@ function dataCellBuffers(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
+  const sparkleBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, sparkleBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sparkle), gl.STATIC_DRAW);
+
+
   return {
     position: positionBuffer,
     color: colorBuffer,
+    sparkle: sparkleBuffer,
     num: positions.length/2,
   };
 }
@@ -424,6 +462,24 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
         offset);
     gl.enableVertexAttribArray(
         programInfo.attribLocations.vertexColor);
+  }
+  
+  {
+    const numComponents = 1;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.sparkle);
+    gl.vertexAttribPointer(
+        programInfo.attribLocations.sparkle,
+        numComponents,
+        type,
+        normalize,
+        stride,
+        offset);
+    gl.enableVertexAttribArray(
+        programInfo.attribLocations.sparkle);
   }
 
   // Tell WebGL to use our program when drawing
