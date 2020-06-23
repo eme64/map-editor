@@ -2,13 +2,14 @@ var squareRotation = 0.0;
 
 var data = {};
 
-main();
+dataLoad();
+//main();
 
 //
 // Start here
 //
 function main() {
-  dataLoad();
+  //dataLoad();
   
   // set up canvas
   //
@@ -32,10 +33,12 @@ function main() {
     uniform mat4 uProjectionMatrix;
 
     varying lowp vec4 vColor;
+    varying lowp vec4 vPos;
 
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
       vColor = aVertexColor;
+      vPos = gl_Position;
     }
   `;
 
@@ -43,9 +46,17 @@ function main() {
 
   const fsSource = `
     varying lowp vec4 vColor;
-
+    varying lowp vec4 vPos;
+    uniform lowp float iOffset;
+   
     void main(void) {
-      gl_FragColor = vColor;
+      lowp float f = mod(vPos.x+vPos.y+iOffset,1.0)*0.3;
+      //gl_FragColor = mix(vColor,vec4(1,0,0,1),f);
+      gl_FragColor = vec4(
+	      mod(2.0*f+vColor[0],1.0),
+	      mod(3.0*f+vColor[1],1.0),
+	      mod(5.0*f+vColor[2],1.0),
+	      1);
     }
   `;
 
@@ -66,12 +77,13 @@ function main() {
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      iOffset: gl.getUniformLocation(shaderProgram, 'iOffset'),
     },
   };
 
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
-  const buffers = initBuffers(gl);
+  const buffers = dataCellBuffers(gl);//initBuffers(gl);
 
   var then = 0;
 
@@ -92,7 +104,8 @@ function dataLoad() {
   fetch("data.txt")
   .then(response => response.text())
   .then((res) => {
-    dataLoadParse(res)
+    dataLoadParse(res);
+    main();
   })
 }
 
@@ -213,6 +226,41 @@ function dataLoadParse(txt) {
   console.log(data);
 }
 
+function dataCellBuffers(gl) {
+  var positions = [];
+  var colors = [];
+  for(var cid in data.cells) {
+    const cell = data.cells[cid];
+    const col = data.palette[cell.paletteId].color;
+    const r0 = 1-Math.random()*0.2;
+    for(var c=2;c<cell.corners.length;c++) {
+      positions.push(cell.corners[0][0]);
+      positions.push(cell.corners[0][1]);
+      positions.push(cell.corners[c-1][0]);
+      positions.push(cell.corners[c-1][1]);
+      positions.push(cell.corners[c][0]);
+      positions.push(cell.corners[c][1]);
+      colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
+      colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
+      colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
+    }
+  }
+
+  const positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+  const colorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+  return {
+    position: positionBuffer,
+    color: colorBuffer,
+    num: positions.length/2,
+  };
+}
+
 //
 // initBuffers
 //
@@ -295,26 +343,33 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // Create a perspective matrix, a special matrix that is
-  // used to simulate the distortion of perspective in a camera.
-  // Our field of view is 45 degrees, with a width/height
-  // ratio that matches the display size of the canvas
-  // and we only want to see objects between 0.1 units
-  // and 100 units away from the camera.
+  ///  // Create a perspective matrix, a special matrix that is
+  ///  // used to simulate the distortion of perspective in a camera.
+  ///  // Our field of view is 45 degrees, with a width/height
+  ///  // ratio that matches the display size of the canvas
+  ///  // and we only want to see objects between 0.1 units
+  ///  // and 100 units away from the camera.
 
-  const fieldOfView = 45 * Math.PI / 180;   // in radians
+  ///  const fieldOfView = 45 * Math.PI / 180;   // in radians
+  ///  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+  ///  const zNear = 0.1;
+  ///  const zFar = 100.0;
+  ///  const projectionMatrix = mat4.create();
+
+  ///  // note: glmatrix.js always has the first argument
+  ///  // as the destination to receive the result.
+  ///  mat4.perspective(projectionMatrix,
+  ///                   fieldOfView,
+  ///                   aspect,
+  ///                   zNear,
+  ///                   zFar);
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  const zNear = 0.1;
-  const zFar = 100.0;
+  const rzoom = 1000;
+  const xf = aspect*rzoom;
+  const yf = rzoom;
   const projectionMatrix = mat4.create();
-
-  // note: glmatrix.js always has the first argument
-  // as the destination to receive the result.
-  mat4.perspective(projectionMatrix,
-                   fieldOfView,
-                   aspect,
-                   zNear,
-                   zFar);
+  mat4.ortho(projectionMatrix,
+             0, xf, yf, 0, 0.1, 100);
 
   // Set the drawing position to the "identity" point, which is
   // the center of the scene.
@@ -326,10 +381,10 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
   mat4.translate(modelViewMatrix,     // destination matrix
                  modelViewMatrix,     // matrix to translate
                  [-0.0, 0.0, -6.0]);  // amount to translate
-  mat4.rotate(modelViewMatrix,  // destination matrix
-              modelViewMatrix,  // matrix to rotate
-              squareRotation,   // amount to rotate in radians
-              [0, 0, 1]);       // axis to rotate around
+  //mat4.rotate(modelViewMatrix,  // destination matrix
+  //            modelViewMatrix,  // matrix to rotate
+  //            squareRotation,   // amount to rotate in radians
+  //            [0, 0, 1]);       // axis to rotate around
 
   // Tell WebGL how to pull out the positions from the position
   // buffer into the vertexPosition attribute
@@ -385,7 +440,10 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
       programInfo.uniformLocations.modelViewMatrix,
       false,
       modelViewMatrix);
-
+  gl.uniform1f(
+      programInfo.uniformLocations.iOffset,
+      squareRotation);
+ 
   {
     const offset = 0;
     const vertexCount = buffers.num;
