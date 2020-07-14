@@ -7,7 +7,14 @@ const worldconfigs = {
 	name: "datamap",
 	file: "maps/data.txt",
         x: 0,
-        y: 0,
+        y: 5,
+	parent: "none",
+      },
+      {
+	name: "mini",
+	file: "maps/mini.txt",
+        x: 200,
+        y: 100,
 	parent: "none",
       },
     ],
@@ -41,6 +48,10 @@ async function worldload(name) {
     world.maps[m.name].x = m.x;
     world.maps[m.name].y = m.y;
     world.maps[m.name].parent = m.parent;
+    world.maps[m.name].gl = {
+      hasArrays: false,
+      needRender: true,
+    };
   }
   
   return world;

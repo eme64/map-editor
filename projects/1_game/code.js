@@ -3,6 +3,8 @@
 // - camera: zoom range, rotaton/pos relative to last clicked object?
 // - place objects: gui
 
+// Have some mapping from data -> gl/game data
+
 
 // World definition:
 // list of maps and objects
@@ -58,22 +60,15 @@ function main() {
   const vsSource = `
     attribute vec4 aVertexPosition;
     attribute vec4 aVertexColor;
-    attribute float aSparkle;
 
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
 
     varying lowp vec4 vColor;
-    varying lowp vec4 vPos;
-    varying highp float vSparkle;
-    varying highp float vSparkleX;
 
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
       vColor = aVertexColor;
-      vPos = gl_Position;
-      vSparkleX = step(2.0,aSparkle);
-      vSparkle = aSparkle*1.0*(1.0-vSparkleX);
     }
   `;
 
@@ -81,34 +76,9 @@ function main() {
 
   const fsSource = `
     varying lowp vec4 vColor;
-    varying lowp vec4 vPos;
-    varying lowp float vSparkle;
-    uniform highp float iOffset;
-    varying highp float vSparkleX;
-    uniform highp vec2 uControl;
    
     void main(void) {
-      highp float dx = uControl.x-vPos.x-0.5;
-      highp float dy = -uControl.y*2.0-vPos.y+0.5;
-      highp float e = max(-0.05 / (dx*dx + dy*dy),-0.5);
-      highp float f = mod(e + vPos.x+vPos.y+0.2*iOffset,1.0)*0.3;
-      highp float g = mod(2.0*vPos.x-vPos.y+2.0*iOffset,1.0)*0.05;
-      gl_FragColor = mix(
-	      //mix(
-	      //  vColor,
-	        vec4(
-	        mod(2.0*f+vColor[0],1.0),
-	        mod(3.0*f+vColor[1],1.0),
-	        mod(5.0*f+vColor[2],1.0),
-	          1),
-	      //  vSparkle
-	      //),
-	      vec4(
-	      mod(13.0*g+vColor[0],1.0),
-	      mod(17.0*g+vColor[1],1.0),
-	      mod(23.0*g+vColor[2],1.0),
-	      1),
-	      vSparkleX);
+      gl_FragColor = vColor;
     }
   `;
 
@@ -137,7 +107,8 @@ function main() {
 
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
-  const buffers = dataCellBuffers(gl);//initBuffers(gl);
+  worldRender(gl);
+  //const buffers = dataCellBuffers(gl);
 
   var then = 0;
 
@@ -147,7 +118,8 @@ function main() {
     const deltaTime = now - then;
     then = now;
 
-    drawScene(canvas,gl, programInfo, buffers, deltaTime);
+    //drawScene(canvas,gl, programInfo, buffers, deltaTime);
+    drawWorld(canvas,gl, programInfo, deltaTime);
 
     requestAnimationFrame(render);
   }
@@ -160,23 +132,45 @@ function controlMove(id, x, y) {
   controlY = y;
 }
 
+function worldRender(gl) {
+  console.log("render world...");
+  for(var n in world.maps) {
+    console.log(n);
+    var m = world.maps[n];
+    
+    if(m.gl.needRender) {
+      m.gl.needRender = false;
+      
+      if(m.gl.hasArray) {
+        // free old arrays.
+	console.log("free old arrays")
+        // TODO
+      }
+      // create new arrays.
+      console.log("create new arrays")
+      m.gl.buffers = mapBuffers(gl, m);
+      m.gl.hasArray = true;
+    }
+  }
+  
+  console.log("render world done.");
+}
 
-function dataCellBuffers(gl) {
+function mapBuffers(gl, m) {
   var positions = [];
   var colors = [];
-  var sparkle = [];
-  var lid = -1;
-  for(var i in data.layer) {
-    const name = data.layer[i].name;
-    if(name === "sparkle") {lid = i;}
-    console.log(name,i);
-  }
-  for(var cid in data.cells) {
-    const cell = data.cells[cid];
-    const col = data.palette[cell.paletteId].color;
+  //var lid = -1;
+  //for(var i in data.layer) {
+  //  const name = data.layer[i].name;
+  //  if(name === "sparkle") {lid = i;}
+  //  console.log(name,i);
+  //}
+  for(var cid in m.cells) {
+    const cell = m.cells[cid];
+    const col = m.palette[cell.paletteId].color;
     const r0 = 1-Math.random()*0.2;
-    var spark = parseFloat(cell.layer[lid]);
-    if(!spark) {spark = 0.0;}
+    //var spark = parseFloat(cell.layer[lid]);
+    //if(!spark) {spark = 0.0;}
     for(var c=2;c<cell.corners.length;c++) {
       positions.push(cell.corners[0][0]);
       positions.push(cell.corners[0][1]);
@@ -187,12 +181,12 @@ function dataCellBuffers(gl) {
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
       colors.push(r0*col[0],r0*col[1],r0*col[2],col[3]);
-      sparkle.push(spark);
-      sparkle.push(spark);
-      sparkle.push(spark);
+      //sparkle.push(spark);
+      //sparkle.push(spark);
+      //sparkle.push(spark);
     }
   }
-  console.log(sparkle)
+  //console.log(sparkle)
 
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -202,75 +196,18 @@ function dataCellBuffers(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
 
-  const sparkleBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, sparkleBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sparkle), gl.STATIC_DRAW);
+  //const sparkleBuffer = gl.createBuffer();
+  //gl.bindBuffer(gl.ARRAY_BUFFER, sparkleBuffer);
+  //gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sparkle), gl.STATIC_DRAW);
 
 
   return {
     position: positionBuffer,
     color: colorBuffer,
-    sparkle: sparkleBuffer,
+    //sparkle: sparkleBuffer,
     num: positions.length/2,
   };
 }
-
-//
-// initBuffers
-//
-// Initialize the buffers we'll need. For this demo, we just
-// have one object -- a simple two-dimensional square.
-//
-function initBuffers(gl) {
-
-  // Create a buffer for the square's positions.
-
-  const positionBuffer = gl.createBuffer();
-
-  // Select the positionBuffer as the one to apply buffer
-  // operations to from here out.
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-  // Now create an array of positions for the square.
-
-  const positions = [
-     1.0,  1.0,
-    -1.0,  1.0,
-     1.0, -1.0,
-     1.0, -1.0,
-    -1.0,  1.0,
-    -1.0, -1.0,
-  ];
-
-  // Now pass the list of positions into WebGL to build the
-  // shape. We do this by creating a Float32Array from the
-  // JavaScript array, then use it to fill the current buffer.
-
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-  // Now set up the colors for the vertices
-
-  const colors = [
-    1.0,  1.0,  1.0,  1.0,    // white
-    1.0,  0.0,  0.0,  1.0,    // red
-    0.0,  1.0,  0.0,  1.0,    // green
-    0.0,  1.0,  0.0,  1.0,    // green
-    1.0,  0.0,  0.0,  1.0,    // red
-    0.0,  0.0,  1.0,  1.0,    // blue
-  ];
-
-  const colorBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-
-  return {
-    position: positionBuffer,
-    color: colorBuffer,
-    num: 6,
-  };
-}
-
 function resizeCanvas(canvas,gl) {
   var width = canvas.clientWidth;
   var height = canvas.clientHeight;
@@ -282,10 +219,11 @@ function resizeCanvas(canvas,gl) {
   }
 }
 
+
 //
-// Draw the scene.
+// Draw the world.
 //
-function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
+function drawWorld(canvas, gl, programInfo, deltaTime) {
   resizeCanvas(canvas,gl);
 
   gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
@@ -294,29 +232,9 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
   gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
   // Clear the canvas before we start drawing on it.
-
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  ///  // Create a perspective matrix, a special matrix that is
-  ///  // used to simulate the distortion of perspective in a camera.
-  ///  // Our field of view is 45 degrees, with a width/height
-  ///  // ratio that matches the display size of the canvas
-  ///  // and we only want to see objects between 0.1 units
-  ///  // and 100 units away from the camera.
-
-  ///  const fieldOfView = 45 * Math.PI / 180;   // in radians
-  ///  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  ///  const zNear = 0.1;
-  ///  const zFar = 100.0;
-  ///  const projectionMatrix = mat4.create();
-
-  ///  // note: glmatrix.js always has the first argument
-  ///  // as the destination to receive the result.
-  ///  mat4.perspective(projectionMatrix,
-  ///                   fieldOfView,
-  ///                   aspect,
-  ///                   zNear,
-  ///                   zFar);
+  // create projection matrix
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
   const rzoom = 1000;
   const xf = aspect*rzoom;
@@ -326,114 +244,89 @@ function drawScene(canvas, gl, programInfo, buffers, deltaTime) {
   const projectionMatrix = mat4.create();
   mat4.ortho(projectionMatrix,
              xf0, xf1, yf, 0, 0.1, 100);
-
-  // Set the drawing position to the "identity" point, which is
-  // the center of the scene.
-  const modelViewMatrix = mat4.create();
-
-  // Now move the drawing position a bit to where we want to
-  // start drawing the square.
-
-  mat4.translate(modelViewMatrix,     // destination matrix
-                 modelViewMatrix,     // matrix to translate
-                 [-0.0, 0.0, -6.0]);  // amount to translate
-  //mat4.rotate(modelViewMatrix,  // destination matrix
-  //            modelViewMatrix,  // matrix to rotate
-  //            squareRotation,   // amount to rotate in radians
-  //            [0, 0, 1]);       // axis to rotate around
-
-  // Tell WebGL how to pull out the positions from the position
-  // buffer into the vertexPosition attribute
-  {
-    const numComponents = 2;
-    const type = gl.FLOAT;
-    const normalize = false;
-    const stride = 0;
-    const offset = 0;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-    gl.vertexAttribPointer(
-        programInfo.attribLocations.vertexPosition,
-        numComponents,
-        type,
-        normalize,
-        stride,
-        offset);
-    gl.enableVertexAttribArray(
-        programInfo.attribLocations.vertexPosition);
-  }
-
-  // Tell WebGL how to pull out the colors from the color buffer
-  // into the vertexColor attribute.
-  {
-    const numComponents = 4;
-    const type = gl.FLOAT;
-    const normalize = false;
-    const stride = 0;
-    const offset = 0;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
-    gl.vertexAttribPointer(
-        programInfo.attribLocations.vertexColor,
-        numComponents,
-        type,
-        normalize,
-        stride,
-        offset);
-    gl.enableVertexAttribArray(
-        programInfo.attribLocations.vertexColor);
-  }
   
-  {
-    const numComponents = 1;
-    const type = gl.FLOAT;
-    const normalize = false;
-    const stride = 0;
-    const offset = 0;
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffers.sparkle);
-    gl.vertexAttribPointer(
-        programInfo.attribLocations.sparkle,
-        numComponents,
-        type,
-        normalize,
-        stride,
-        offset);
-    gl.enableVertexAttribArray(
-        programInfo.attribLocations.sparkle);
-  }
+  // process each map now:
+  for(var n in world.maps) {
+    var m = world.maps[n];
+    
+    const modelViewMatrix = mat4.create();
+    mat4.translate(modelViewMatrix,     // destination matrix
+                 modelViewMatrix,     // matrix to translate
+                 [m.x,m.y, -1]);  // amount to translate
+  
+    // Tell WebGL how to pull out the positions from the position
+    // buffer into the vertexPosition attribute
+    {
+      const numComponents = 2;
+      const type = gl.FLOAT;
+      const normalize = false;
+      const stride = 0;
+      const offset = 0;
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.gl.buffers.position);
+      gl.vertexAttribPointer(
+          programInfo.attribLocations.vertexPosition,
+          numComponents,
+          type,
+          normalize,
+          stride,
+          offset);
+      gl.enableVertexAttribArray(
+          programInfo.attribLocations.vertexPosition);
+    }
 
-  // Tell WebGL to use our program when drawing
+    // Tell WebGL how to pull out the colors from the color buffer
+    // into the vertexColor attribute.
+    {
+      const numComponents = 4;
+      const type = gl.FLOAT;
+      const normalize = false;
+      const stride = 0;
+      const offset = 0;
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.gl.buffers.color);
+      gl.vertexAttribPointer(
+          programInfo.attribLocations.vertexColor,
+          numComponents,
+          type,
+          normalize,
+          stride,
+          offset);
+      gl.enableVertexAttribArray(
+          programInfo.attribLocations.vertexColor);
+    }
 
-  gl.useProgram(programInfo.program);
+    gl.useProgram(programInfo.program);
+    // Tell WebGL to use our program when drawing
 
-  // Set the shader uniforms
-
-  gl.uniformMatrix4fv(
-      programInfo.uniformLocations.projectionMatrix,
-      false,
-      projectionMatrix);
-  gl.uniformMatrix4fv(
-      programInfo.uniformLocations.modelViewMatrix,
-      false,
-      modelViewMatrix);
-  gl.uniform1f(
-      programInfo.uniformLocations.iOffset,
-      squareRotation);
-  let ctrl = vec2.create();
-  ctrl[0] = controlX;
-  ctrl[1] = controlY;
-  gl.uniform2fv(
-      programInfo.uniformLocations.control,
-      ctrl);
+    // Set the shader uniforms
+    gl.uniformMatrix4fv(
+        programInfo.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+    gl.uniformMatrix4fv(
+        programInfo.uniformLocations.modelViewMatrix,
+        false,
+        modelViewMatrix);
+    //gl.uniform1f(
+    //    programInfo.uniformLocations.iOffset,
+    //    squareRotation);
+    //let ctrl = vec2.create();
+    //ctrl[0] = controlX;
+    //ctrl[1] = controlY;
+    //gl.uniform2fv(
+    //    programInfo.uniformLocations.control,
+    //    ctrl);
  
-  {
-    const offset = 0;
-    const vertexCount = buffers.num;
-    gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
+    {
+      const offset = 0;
+      const vertexCount = m.gl.buffers.num;
+      gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
+    }
   }
 
   // Update the rotation for the next draw
-
   squareRotation += deltaTime;
 }
+
 
 //
 // Initialize a shader program, so WebGL knows how to draw our data
