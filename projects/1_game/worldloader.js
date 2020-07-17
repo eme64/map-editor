@@ -7,7 +7,7 @@ const worldconfigs = {
 	name: "datamap",
 	file: "maps/data.txt",
         x: 0,
-        y: 5,
+        y: 0,
 	parent: "none",
       },
       {

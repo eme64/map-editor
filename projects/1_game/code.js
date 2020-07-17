@@ -48,11 +48,11 @@ function main() {
      var touches = event.changedTouches;
      for(var i=0; i<touches.length; i++) {
         var id = touches[i].identifier;
-        controlMove(id, touches[i].pageX/canvas.width,touches[i].pageY/canvas.height);
+        controlMove(id, touches[i].pageX,touches[i].pageY);
      }
   });
   canvas.addEventListener("mousemove", function(event) {
-     controlMove(-1, event.pageX/canvas.width,event.pageY/canvas.height);
+     controlMove(-1, event.pageX,event.pageY);
   });
   
   window.addEventListener('wheel', controlScroll);
@@ -149,11 +149,18 @@ function controlMove(id, x, y) {
   //console.log(id,x,y);
   controlX = x;
   controlY = y;
+  var xx = (x - controlOX)/controlZ;
+  var yy = (y - controlOY)/controlZ;
+  //console.log("move " + xx + " " + yy);
 }
 function controlScroll(event) {
+  const old_Z = controlZ;
   controlZ = Math.min(10, Math.max(0.1, controlZ * Math.pow(0.999,event.deltaY)));
-  
-  
+  // adjust consoleOX/Y
+  var xx = (event.x - controlOX)/old_Z;
+  var yy = (event.y - controlOY)/old_Z;
+  controlOX = event.x - controlZ*xx;
+  controlOY = event.y - controlZ*yy;
 }
 
 function controlKeyDown(event) {
@@ -279,15 +286,6 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // create projection matrix
-  //const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  //const rzoom = controlZ;
-  //const xf = aspect*rzoom;
-  //const xf0 = 0.5*(1-aspect)*rzoom;
-  //const xf1 = xf0+xf;
-  //const yf = rzoom;
-  //const projectionMatrix = mat4.create();
-  //mat4.ortho(projectionMatrix,
-  //           xf0, xf1, yf, 0, 0.1, 100);
   const projectionMatrix = mat4.create();
   mat4.ortho(projectionMatrix,
              0, gl.canvas.clientWidth, gl.canvas.clientHeight, 0, 0.1, 100);
