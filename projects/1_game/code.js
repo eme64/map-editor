@@ -26,6 +26,13 @@ var data = {};
 
 var controlX = 0.5;
 var controlY = 0.5;
+var controlZ = 1000; // zoom
+var controlOX = 0; // origin X
+var controlOY = 0; // origin Y
+var controlKeyW = false;
+var controlKeyA = false;
+var controlKeyS = false;
+var controlKeyD = false;
 
 //
 // Start here
@@ -47,6 +54,12 @@ function main() {
   canvas.addEventListener("mousemove", function(event) {
      controlMove(-1, event.pageX/canvas.width,event.pageY/canvas.height);
   });
+  
+  window.addEventListener('wheel', controlScroll);
+  
+  window.addEventListener('keydown', controlKeyDown);
+  window.addEventListener('keyup', controlKeyUp);
+  
   
   // If we don't have a GL context, give up now
 
@@ -121,7 +134,9 @@ function main() {
     now *= 0.001;  // convert to seconds
     const deltaTime = now - then;
     then = now;
-
+    
+    updateWorld(deltaTime);
+    
     //drawScene(canvas,gl, programInfo, buffers, deltaTime);
     drawWorld(canvas,gl, programInfo, deltaTime);
 
@@ -134,6 +149,24 @@ function controlMove(id, x, y) {
   //console.log(id,x,y);
   controlX = x;
   controlY = y;
+}
+function controlScroll(event) {
+  controlZ = Math.min(10000, Math.max(100, controlZ * Math.pow(1.001,event.deltaY)));
+  
+  
+}
+
+function controlKeyDown(event) {
+  if(event.code === 'KeyW') { controlKeyW = true; }
+  if(event.code === 'KeyA') { controlKeyA = true; }
+  if(event.code === 'KeyS') { controlKeyS = true; }
+  if(event.code === 'KeyD') { controlKeyD = true; }
+}
+function controlKeyUp(event) {
+  if(event.code === 'KeyW') { controlKeyW = false; }
+  if(event.code === 'KeyA') { controlKeyA = false; }
+  if(event.code === 'KeyS') { controlKeyS = false; }
+  if(event.code === 'KeyD') { controlKeyD = false; }
 }
 
 function worldRender(gl) {
@@ -223,6 +256,13 @@ function resizeCanvas(canvas,gl) {
   }
 }
 
+function updateWorld(deltaTime) {
+  if(controlKeyW) {controlOY += deltaTime*0.5*controlZ;}
+  if(controlKeyA) {controlOX += deltaTime*0.5*controlZ;}
+  if(controlKeyS) {controlOY -= deltaTime*0.5*controlZ;}
+  if(controlKeyD) {controlOX -= deltaTime*0.5*controlZ;}
+}
+
 
 //
 // Draw the world.
@@ -240,7 +280,7 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
 
   // create projection matrix
   const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  const rzoom = 1000;
+  const rzoom = controlZ;
   const xf = aspect*rzoom;
   const xf0 = 0.5*(1-aspect)*rzoom;
   const xf1 = xf0+xf;
@@ -256,7 +296,7 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix,     // destination matrix
                  modelViewMatrix,     // matrix to translate
-                 [m.x,m.y, -6]);  // amount to translate
+                 [m.x + controlOX, m.y + controlOY, -6]);  // amount to translate
   
     // Tell WebGL how to pull out the positions from the position
     // buffer into the vertexPosition attribute
