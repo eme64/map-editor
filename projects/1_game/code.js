@@ -373,7 +373,7 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
       var obj = m.objects[i];
       //console.log("draw object " + obj.name);
       //console.log(obj);
-      drawDot(gl,projectionMatrix,obj.x+m.x,obj.y+m.y);
+      drawDot(gl,projectionMatrix,obj.x+m.x,obj.y+m.y,obj.color);
     }
   }
 
@@ -385,7 +385,7 @@ var drawDotBuffer;
 var drawDotProgramInfo;
 
 // Draw dot for some object. Probably replace this later on.
-function drawDot(gl,projectionMatrix,x,y) {
+function drawDot(gl,projectionMatrix,x,y,color) {
   if(!drawDotBuffer) {
     console.log("create drawDotBuffer");
     var positions = [
@@ -420,11 +420,12 @@ function drawDot(gl,projectionMatrix,x,y) {
 
     const fsSource = `
       varying lowp vec4 vPos;
+      uniform highp vec4 uColor;
      
       void main(void) {
         lowp float dd = vPos.x*vPos.x + vPos.y*vPos.y;
 	lowp float res = step(dd,100.0);
-	gl_FragColor = mix(vec4(0,0,0,0),vec4(1,1,1,1),res);
+	gl_FragColor = mix(vec4(0,0,0,0),uColor,res);
       }
     `;
 
@@ -444,6 +445,7 @@ function drawDot(gl,projectionMatrix,x,y) {
       uniformLocations: {
         projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
         modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+        uColor: gl.getUniformLocation(shaderProgram, 'uColor'),
       },
     };
   }
@@ -482,6 +484,9 @@ function drawDot(gl,projectionMatrix,x,y) {
     drawDotProgramInfo.uniformLocations.modelViewMatrix,
     false,
     modelViewMatrix);
+  gl.uniform4fv(
+      drawDotProgramInfo.uniformLocations.uColor,
+      color);
   {
     const offset = 0;
     const vertexCount = 6;

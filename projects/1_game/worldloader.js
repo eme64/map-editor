@@ -24,6 +24,13 @@ const worldconfigs = {
         y: 200,
 	parent: "none",
       },
+      {
+	name: "test2",
+	file: "maps/test2.txt",
+        x: -200,
+        y: 400,
+	parent: "none",
+      },
     ],
   }
 }
