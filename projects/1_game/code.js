@@ -55,6 +55,10 @@ function main() {
     return;
   }
 
+  // enalbe AlphaBlend
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  
   // Vertex shader program
 
   const vsSource = `
@@ -252,7 +256,7 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix,     // destination matrix
                  modelViewMatrix,     // matrix to translate
-                 [m.x,m.y, -1]);  // amount to translate
+                 [m.x,m.y, -6]);  // amount to translate
   
     // Tell WebGL how to pull out the positions from the position
     // buffer into the vertexPosition attribute
@@ -321,10 +325,125 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
       const vertexCount = m.gl.buffers.num;
       gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
     }
+
+    // Draw objects of this map:
+    for(var i in m.objects) {
+      var obj = m.objects[i];
+      //console.log("draw object " + obj.name);
+      //console.log(obj);
+      drawDot(gl,projectionMatrix,obj.x+m.x,obj.y+m.y);
+    }
   }
 
   // Update the rotation for the next draw
   squareRotation += deltaTime;
+}
+
+var drawDotBuffer;
+var drawDotProgramInfo;
+
+// Draw dot for some object. Probably replace this later on.
+function drawDot(gl,projectionMatrix,x,y) {
+  if(!drawDotBuffer) {
+    console.log("create drawDotBuffer");
+    var positions = [
+	    -10,-10,
+	    10,-10,
+	    -10,10,
+	    10,-10,
+	    10,10,
+	    -10,10,
+    ];
+    drawDotBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, drawDotBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+  
+    // Vertex shader program
+
+    const vsSource = `
+      attribute vec4 aVertexPosition;
+
+      uniform mat4 uModelViewMatrix;
+      uniform mat4 uProjectionMatrix;
+
+      varying lowp vec4 vPos;
+      
+      void main(void) {
+        gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+	vPos = aVertexPosition;
+      }
+    `;
+
+    // Fragment shader program
+
+    const fsSource = `
+      varying lowp vec4 vPos;
+     
+      void main(void) {
+        lowp float dd = vPos.x*vPos.x + vPos.y*vPos.y;
+	lowp float res = step(dd,100.0);
+	gl_FragColor = mix(vec4(0,0,0,0),vec4(1,1,1,1),res);
+      }
+    `;
+
+    // Initialize a shader program; this is where all the lighting
+    // for the vertices and so forth is established.
+    const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+    // Collect all the info needed to use the shader program.
+    // Look up which attributes our shader program is using
+    // for aVertexPosition, aVevrtexColor and also
+    // look up uniform locations.
+    drawDotProgramInfo = {
+      program: shaderProgram,
+      attribLocations: {
+        vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+      },
+      uniformLocations: {
+        projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+        modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      },
+    };
+  }
+  
+  const modelViewMatrix = mat4.create();
+  mat4.translate(modelViewMatrix,     // destination matrix
+               modelViewMatrix,     // matrix to translate
+               [x,y, -2]);  // amount to translate
+  
+  // Tell WebGL how to pull out the positions from the position
+  // buffer into the vertexPosition attribute
+  {
+    const numComponents = 2;
+    const type = gl.FLOAT;
+    const normalize = false;
+    const stride = 0;
+    const offset = 0;
+    gl.bindBuffer(gl.ARRAY_BUFFER, drawDotBuffer);
+    gl.vertexAttribPointer(
+        drawDotProgramInfo.attribLocations.vertexPosition,
+        numComponents,
+        type,
+        normalize,
+        stride,
+        offset);
+    gl.enableVertexAttribArray(
+        drawDotProgramInfo.attribLocations.vertexPosition);
+  }
+  gl.useProgram(drawDotProgramInfo.program);
+  gl.uniformMatrix4fv(
+        drawDotProgramInfo.uniformLocations.projectionMatrix,
+        false,
+        projectionMatrix);
+  gl.uniformMatrix4fv(
+    drawDotProgramInfo.uniformLocations.modelViewMatrix,
+    false,
+    modelViewMatrix);
+  {
+    const offset = 0;
+    const vertexCount = 6;
+    gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
+  }
 }
 
 

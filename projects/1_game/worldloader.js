@@ -13,8 +13,15 @@ const worldconfigs = {
       {
 	name: "mini",
 	file: "maps/mini.txt",
-        x: 200,
+        x: -200,
         y: 100,
+	parent: "none",
+      },
+      {
+	name: "test",
+	file: "maps/test.txt",
+        x: -200,
+        y: 200,
 	parent: "none",
       },
     ],
