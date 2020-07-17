@@ -26,7 +26,7 @@ var data = {};
 
 var controlX = 0.5;
 var controlY = 0.5;
-var controlZ = 1000; // zoom
+var controlZ = 1; // zoom
 var controlOX = 0; // origin X
 var controlOY = 0; // origin Y
 var controlKeyW = false;
@@ -151,7 +151,7 @@ function controlMove(id, x, y) {
   controlY = y;
 }
 function controlScroll(event) {
-  controlZ = Math.min(10000, Math.max(100, controlZ * Math.pow(1.001,event.deltaY)));
+  controlZ = Math.min(10, Math.max(0.1, controlZ * Math.pow(0.999,event.deltaY)));
   
   
 }
@@ -257,10 +257,10 @@ function resizeCanvas(canvas,gl) {
 }
 
 function updateWorld(deltaTime) {
-  if(controlKeyW) {controlOY += deltaTime*0.5*controlZ;}
-  if(controlKeyA) {controlOX += deltaTime*0.5*controlZ;}
-  if(controlKeyS) {controlOY -= deltaTime*0.5*controlZ;}
-  if(controlKeyD) {controlOX -= deltaTime*0.5*controlZ;}
+  if(controlKeyW) {controlOY += deltaTime*500;}
+  if(controlKeyA) {controlOX += deltaTime*500;}
+  if(controlKeyS) {controlOY -= deltaTime*500;}
+  if(controlKeyD) {controlOX -= deltaTime*500;}
 }
 
 
@@ -279,16 +279,19 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // create projection matrix
-  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-  const rzoom = controlZ;
-  const xf = aspect*rzoom;
-  const xf0 = 0.5*(1-aspect)*rzoom;
-  const xf1 = xf0+xf;
-  const yf = rzoom;
+  //const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+  //const rzoom = controlZ;
+  //const xf = aspect*rzoom;
+  //const xf0 = 0.5*(1-aspect)*rzoom;
+  //const xf1 = xf0+xf;
+  //const yf = rzoom;
+  //const projectionMatrix = mat4.create();
+  //mat4.ortho(projectionMatrix,
+  //           xf0, xf1, yf, 0, 0.1, 100);
   const projectionMatrix = mat4.create();
   mat4.ortho(projectionMatrix,
-             xf0, xf1, yf, 0, 0.1, 100);
-  
+             0, gl.canvas.clientWidth, gl.canvas.clientHeight, 0, 0.1, 100);
+
   // process each map now:
   for(var n in world.maps) {
     var m = world.maps[n];
@@ -296,7 +299,8 @@ function drawWorld(canvas, gl, programInfo, deltaTime) {
     const modelViewMatrix = mat4.create();
     mat4.translate(modelViewMatrix,     // destination matrix
                  modelViewMatrix,     // matrix to translate
-                 [m.x + controlOX, m.y + controlOY, -6]);  // amount to translate
+                 [m.x*controlZ + controlOX, m.y*controlZ + controlOY, -6]);  // amount to translate
+    mat4.scale(modelViewMatrix,modelViewMatrix, [controlZ,controlZ,1]);
   
     // Tell WebGL how to pull out the positions from the position
     // buffer into the vertexPosition attribute
@@ -449,7 +453,8 @@ function drawDot(gl,projectionMatrix,x,y) {
   const modelViewMatrix = mat4.create();
   mat4.translate(modelViewMatrix,     // destination matrix
                modelViewMatrix,     // matrix to translate
-               [x,y, -2]);  // amount to translate
+               [x*controlZ + controlOX, y*controlZ + controlOY, -2]);  // amount to translate
+  mat4.scale(modelViewMatrix,modelViewMatrix, [controlZ,controlZ,1]);
   
   // Tell WebGL how to pull out the positions from the position
   // buffer into the vertexPosition attribute
